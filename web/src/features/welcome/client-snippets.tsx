@@ -64,14 +64,14 @@ export function WelcomeClientSnippets({ baseUrl }: { baseUrl: string }) {
   return (
     <section
       id='welcome-clients'
-      className='relative z-10 scroll-mt-20 border-t border-border/40 px-6 py-24 md:py-32'
+      className='relative z-10 scroll-mt-20 border-t px-6 py-24 md:py-32'
     >
       <div className='mx-auto grid max-w-6xl items-start gap-12 lg:grid-cols-12 lg:gap-10'>
         <Reveal className='lg:col-span-5'>
-          <p className='mb-3 text-xs font-medium tracking-widest text-muted-foreground uppercase'>
+          <p className='mb-3 text-[13px] font-medium tracking-[0.03em] text-muted-foreground'>
             客户端接入
           </p>
-          <h2 className='text-2xl leading-tight font-bold tracking-tight md:text-3xl'>
+          <h2 className='text-[1.75rem] leading-[1.2] font-semibold tracking-[-0.022em] md:text-[2.5rem] md:leading-[1.15]'>
             改一个地址，
             <br />
             现有工具直接用
@@ -88,7 +88,7 @@ export function WelcomeClientSnippets({ baseUrl }: { baseUrl: string }) {
                 key={n}
                 className='flex gap-2.5 text-sm leading-relaxed text-muted-foreground'
               >
-                <span className='mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border border-border/50 bg-muted/40'>
+                <span className='mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border bg-muted'>
                   <Check aria-hidden className='size-3' />
                 </span>
                 {n}
@@ -111,11 +111,11 @@ export function WelcomeClientSnippets({ baseUrl }: { baseUrl: string }) {
           delay={120}
           className='min-w-0 lg:col-span-7'
         >
-          <div className='overflow-hidden rounded-2xl border border-border/60 bg-white/95 shadow-[0_20px_50px_-25px_rgba(15,23,42,0.18)] dark:border-white/[0.06] dark:bg-[#0b0f17]/95 dark:shadow-[0_20px_60px_-25px_rgba(0,0,0,0.7)]'>
+          <div className='overflow-hidden rounded-xl border bg-card edge-highlight'>
             <div
               role='tablist'
               aria-label='客户端配置'
-              className='flex items-center gap-1 border-b border-border/50 px-2 sm:px-3 dark:border-white/[0.05]'
+              className='flex items-center gap-1 border-b px-2 sm:px-3'
             >
               {tabs.map((t, i) => (
                 <button
@@ -127,8 +127,8 @@ export function WelcomeClientSnippets({ baseUrl }: { baseUrl: string }) {
                   className={cn(
                     '-mb-px border-b-2 px-3 py-2.5 text-xs font-medium tracking-wide transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
                     i === active
-                      ? 'border-blue-500 text-blue-600 dark:text-blue-300'
-                      : 'border-transparent text-foreground/40 hover:text-foreground/70'
+                      ? 'border-primary text-foreground'
+                      : 'border-transparent text-muted-foreground hover:text-foreground'
                   )}
                 >
                   {t.label}
@@ -140,15 +140,15 @@ export function WelcomeClientSnippets({ baseUrl }: { baseUrl: string }) {
                 className='ms-auto'
               />
             </div>
-            <div className='flex items-center justify-between gap-3 border-b border-border/40 px-5 py-2.5 dark:border-white/[0.04]'>
-              <code className='truncate font-mono text-[12px] text-foreground/75'>
+            <div className='flex items-center justify-between gap-3 border-b px-5 py-2.5'>
+              <code className='truncate font-mono text-[12px] text-secondary-foreground'>
                 {tab.file}
               </code>
-              <span className='hidden truncate text-[11px] text-foreground/40 sm:inline'>
+              <span className='hidden truncate text-[11px] text-muted-foreground sm:inline'>
                 {tab.hint}
               </span>
             </div>
-            <pre className='min-h-[220px] overflow-x-auto px-5 py-4 font-mono text-[12.5px] leading-[1.6] text-foreground/80'>
+            <pre className='min-h-[220px] overflow-x-auto px-5 py-4 font-mono text-[12.5px] leading-[1.6] text-secondary-foreground'>
               {tab.code}
             </pre>
           </div>

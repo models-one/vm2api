@@ -305,7 +305,9 @@ export function WrapSamplePage() {
                     <span
                       className={cn(
                         'inline-flex items-center gap-1.5',
-                        product.ready ? 'text-primary' : 'text-muted-foreground'
+                        product.ready
+                          ? 'text-primary-ink'
+                          : 'text-muted-foreground'
                       )}
                     >
                       {product.ready ? (
@@ -410,7 +412,7 @@ export function WrapSamplePage() {
                     ) : (
                       <CheckCircle2
                         aria-hidden='true'
-                        className='size-4 text-primary'
+                        className='size-4 text-primary-ink'
                       />
                     )}
                     {installing
@@ -514,7 +516,9 @@ export function WrapSamplePage() {
                             <p
                               className={cn(
                                 'mt-2 flex min-w-0 items-start gap-2 text-base break-words sm:text-sm',
-                                result.ok ? 'text-primary' : 'text-destructive'
+                                result.ok
+                                  ? 'text-primary-ink'
+                                  : 'text-destructive'
                               )}
                             >
                               {result.ok ? (
@@ -582,7 +586,7 @@ export function WrapSamplePage() {
                                 <div
                                   className={
                                     license?.valid
-                                      ? 'text-primary'
+                                      ? 'text-primary-ink'
                                       : 'text-destructive'
                                   }
                                 >

@@ -25,44 +25,23 @@ export function WelcomeHero({
 }) {
   return (
     <section className='relative z-10 overflow-hidden px-6 pt-28 pb-16 md:pt-36 md:pb-24 lg:pb-28'>
-      <div
-        aria-hidden
-        className='pointer-events-none absolute inset-0 -z-10 opacity-25 dark:opacity-[0.12]'
-        style={{
-          background: [
-            'radial-gradient(ellipse 60% 50% at 20% 20%, oklch(0.72 0.18 250 / 80%) 0%, transparent 70%)',
-            'radial-gradient(ellipse 50% 40% at 80% 15%, oklch(0.65 0.15 200 / 60%) 0%, transparent 70%)',
-            'radial-gradient(ellipse 40% 35% at 40% 80%, oklch(0.70 0.12 280 / 40%) 0%, transparent 70%)',
-          ].join(', '),
-        }}
-      />
-      <div
-        aria-hidden
-        className='pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(to_right,var(--border)_1px,transparent_1px),linear-gradient(to_bottom,var(--border)_1px,transparent_1px)] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_30%,black_20%,transparent_100%)] bg-[size:4rem_4rem] opacity-[0.35]'
-      />
-
       <div className='mx-auto grid max-w-6xl grid-cols-1 items-start gap-12 lg:grid-cols-12 lg:gap-8'>
         <div className='flex flex-col items-start lg:col-span-6'>
-          <div className='welcome-fade-up mb-5 inline-flex items-center gap-1.5 rounded-full border border-blue-500/20 bg-blue-500/5 px-3 py-1.5 text-[11px] font-medium text-blue-600 shadow-xs dark:border-blue-400/20 dark:bg-blue-400/5 dark:text-blue-400'>
-            <span className='relative flex size-1.5'>
-              <span className='absolute inline-flex size-full animate-ping rounded-full bg-blue-400 opacity-75 motion-reduce:animate-none' />
-              <span className='relative inline-flex size-1.5 rounded-full bg-blue-500 dark:bg-blue-400' />
-            </span>
+          <div className='welcome-fade-up mb-6 inline-flex items-center gap-2 rounded-full border bg-card px-3 py-1 text-[13px] font-medium tracking-[0.03em] text-secondary-foreground'>
+            <span className='size-1.5 rounded-full bg-(--welcome-success)' />
             虚拟化号池网关 · 自建部署
           </div>
 
           <h1
-            className='welcome-fade-up text-[clamp(2.25rem,4.5vw,3.25rem)] leading-[1.15] font-bold tracking-tight'
+            className='welcome-fade-up text-[clamp(2.25rem,5vw,3.5rem)] leading-[1.1] font-semibold tracking-[-0.028em]'
             style={{ animationDelay: '60ms' }}
           >
             把订阅号池
             <br />
-            <span className='bg-gradient-to-r from-blue-400 via-violet-400 to-purple-500 bg-clip-text text-transparent'>
-              变成标准 API
-            </span>
+            <span className='text-muted-foreground'>变成标准 API</span>
           </h1>
           <p
-            className='welcome-fade-up mt-5 max-w-xl text-base leading-relaxed text-muted-foreground md:text-[15px]'
+            className='welcome-fade-up mt-6 max-w-xl text-[17px] leading-[1.6] text-muted-foreground'
             style={{ animationDelay: '120ms' }}
           >
             每个槽位里跑官方客户端，账号与出口一一隔离。对外提供 Anthropic /
@@ -74,10 +53,7 @@ export function WelcomeHero({
             style={{ animationDelay: '180ms' }}
           >
             {signedIn ? (
-              <Button
-                asChild
-                className='group h-11 rounded-lg px-5 text-sm font-medium'
-              >
+              <Button asChild className='group h-10 px-4'>
                 <Link to='/overview'>
                   进入控制台
                   <ArrowRight
@@ -87,10 +63,7 @@ export function WelcomeHero({
                 </Link>
               </Button>
             ) : (
-              <Button
-                asChild
-                className='group h-11 rounded-lg px-5 text-sm font-medium'
-              >
+              <Button asChild className='group h-10 px-4'>
                 <Link to='/login'>
                   登录控制台
                   <ArrowRight
@@ -102,7 +75,7 @@ export function WelcomeHero({
             )}
             <Button
               variant='outline'
-              className='h-11 rounded-lg border-border/50 px-5 text-sm font-medium hover:border-border hover:bg-muted/50'
+              className='h-10 px-4'
               onClick={() =>
                 scrollToSection(
                   signedIn ? 'welcome-setup' : 'welcome-quick-start'
@@ -111,11 +84,7 @@ export function WelcomeHero({
             >
               {signedIn ? '首配清单' : '快速开始'}
             </Button>
-            <Button
-              asChild
-              variant='outline'
-              className='group h-11 rounded-lg border-border/50 px-5 text-sm font-medium hover:border-border hover:bg-muted/50'
-            >
+            <Button asChild variant='outline' className='group h-10 px-4'>
               <a
                 href={docsHref('guide/quick-start')}
                 target='_blank'
@@ -123,7 +92,7 @@ export function WelcomeHero({
               >
                 <BookOpen
                   aria-hidden
-                  className='size-4 text-muted-foreground/80 transition-colors group-hover:text-foreground'
+                  className='size-4 text-muted-foreground transition-colors group-hover:text-foreground'
                 />
                 文档
               </a>
@@ -134,17 +103,17 @@ export function WelcomeHero({
             className='welcome-fade-up mt-10 w-full max-w-xl'
             style={{ animationDelay: '240ms' }}
           >
-            <p className='text-[10px] font-bold tracking-[0.15em] text-muted-foreground/60 uppercase'>
+            <p className='text-[13px] font-medium tracking-[0.03em] text-secondary-foreground'>
               常用客户端
             </p>
-            <p className='mt-1 text-xs leading-relaxed text-muted-foreground/70'>
+            <p className='mt-1 text-xs leading-relaxed text-muted-foreground'>
               改 base URL 与密钥即可接入，不需要插件或补丁。
             </p>
             <ul className='mt-4 flex flex-wrap items-center gap-2.5'>
               {CLIENTS.map(({ name, Icon }) => (
                 <li
                   key={name}
-                  className='flex items-center gap-2 rounded-full border border-border/40 bg-muted/15 px-3.5 py-2 text-[13px] font-medium text-foreground/80 backdrop-blur-xs'
+                  className='flex items-center gap-2 rounded-full border bg-card px-3.5 py-1.5 text-[13px] font-medium text-secondary-foreground'
                 >
                   <Icon size={18} className='shrink-0' />
                   {name}

@@ -43,7 +43,10 @@ function sections(item: RequestLogItem): Section[] {
     { id: 'headers', label: '入站请求头', value: item.headers },
     {
       id: 'outbound_body',
-      label: item.outbound_body_source === 'cli_final' ? '最终出站请求体' : '出站请求体',
+      label:
+        item.outbound_body_source === 'cli_final'
+          ? '最终出站请求体'
+          : '出站请求体',
       value: item.outbound_body,
       note:
         item.outbound_body_source === 'cli_final'
@@ -188,7 +191,7 @@ export function RawDataTab({
             onClick={() => setActive(s.id)}
             className={cn(
               'cursor-pointer rounded-md border px-2.5 py-1 text-xs transition-colors',
-              'hover:bg-muted/60 data-[active=true]:border-primary/50 data-[active=true]:bg-primary/10 data-[active=true]:text-primary'
+              'hover:bg-muted/60 data-[active=true]:border-primary/50 data-[active=true]:bg-primary/10 data-[active=true]:text-primary-ink'
             )}
           >
             {s.label}

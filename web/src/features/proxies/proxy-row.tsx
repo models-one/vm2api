@@ -298,7 +298,7 @@ export function ProxyRow({
             </button>
           ) : null}
           {over ? (
-            <span className='inline-flex h-6 shrink-0 items-center rounded-md border border-dashed border-primary px-2 text-xs text-primary'>
+            <span className='inline-flex h-6 shrink-0 items-center rounded-md border border-dashed border-primary px-2 text-xs text-primary-ink'>
               松开绑定
             </span>
           ) : onBind && bindable && free > 0 ? (

@@ -431,7 +431,10 @@ export function ModelRow({
                   }}
                 >
                   <SelectTrigger
-                    className={cn('h-9 w-full', inheritHit && 'text-primary')}
+                    className={cn(
+                      'h-9 w-full',
+                      inheritHit && 'text-primary-ink'
+                    )}
                     title={
                       inheritHit
                         ? '未设开关，命中回退通配'

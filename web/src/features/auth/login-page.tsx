@@ -79,47 +79,40 @@ export function LoginPage() {
 
   return (
     <div className='welcome-theme relative flex min-h-svh flex-col overflow-hidden bg-background text-foreground'>
-      <div
-        aria-hidden
-        className='pointer-events-none absolute inset-0 opacity-20 dark:opacity-[0.08]'
-        style={{
-          background: [
-            'radial-gradient(ellipse 50% 45% at 30% 30%, oklch(0.72 0.18 250 / 70%) 0%, transparent 70%)',
-            'radial-gradient(ellipse 40% 40% at 75% 70%, oklch(0.70 0.12 280 / 50%) 0%, transparent 70%)',
-          ].join(', '),
-        }}
-      />
-
-      <header className='relative flex h-16 items-center justify-between px-6'>
+      <header className='relative flex h-14 items-center justify-between px-6'>
         <Link
           to='/welcome'
           className='group flex items-center gap-2.5 rounded-lg focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none'
         >
-          <span className='grid size-7 place-items-center rounded-lg bg-foreground text-background transition-transform duration-300 group-hover:scale-105'>
+          <span className='grid size-7 place-items-center rounded-md bg-primary text-primary-foreground'>
             <Logo aria-hidden className='size-4' />
           </span>
-          <span className='text-sm font-semibold tracking-tight'>vm2api</span>
+          <span className='text-sm font-semibold tracking-[-0.01em]'>
+            vm2api
+          </span>
         </Link>
         <ThemeSwitch />
       </header>
 
       <main className='relative flex flex-1 items-center justify-center px-6 pb-20'>
-        <div className='welcome-fade-up w-full max-w-[22rem]'>
-          <h1 className='text-xl font-semibold tracking-tight'>登录控制台</h1>
+        <div className='welcome-fade-up w-full max-w-[24rem] rounded-lg border bg-card p-8 edge-highlight'>
+          <h1 className='text-[1.75rem] leading-[1.2] font-semibold tracking-[-0.6px]'>
+            登录控制台
+          </h1>
           <p className='mt-2 text-sm text-muted-foreground'>
             第一次使用？看
             <a
               href={`${DOCS_URL}guide/install`}
               target='_blank'
               rel='noreferrer'
-              className='text-foreground underline underline-offset-4'
+              className='text-primary-ink underline-offset-4 hover:underline'
             >
               安装文档
             </a>
             ，或回到
             <Link
               to='/welcome'
-              className='text-foreground underline underline-offset-4'
+              className='text-primary-ink underline-offset-4 hover:underline'
             >
               欢迎页
             </Link>
@@ -131,7 +124,7 @@ export function LoginPage() {
               <Label htmlFor='login-username'>用户名</Label>
               <Input
                 id='login-username'
-                className='h-10 rounded-lg'
+                className='h-10'
                 autoComplete='username'
                 placeholder='输入面板用户名'
                 value={username}
@@ -144,7 +137,7 @@ export function LoginPage() {
                 <Input
                   id='login-password'
                   type={showPassword ? 'text' : 'password'}
-                  className='h-10 rounded-lg pe-10'
+                  className='h-10 pe-10'
                   autoComplete='current-password'
                   placeholder='输入密码'
                   autoFocus
@@ -155,7 +148,7 @@ export function LoginPage() {
                   type='button'
                   aria-label={showPassword ? '隐藏密码' : '显示密码'}
                   onClick={() => setShowPassword((v) => !v)}
-                  className='absolute inset-y-0 end-0 flex w-10 items-center justify-center rounded-e-lg text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none'
+                  className='absolute inset-y-0 end-0 flex w-10 items-center justify-center rounded-e-md text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none'
                 >
                   {showPassword ? (
                     <EyeOff aria-hidden className='size-4' />
@@ -171,7 +164,7 @@ export function LoginPage() {
                 <Input
                   id='login-api-base'
                   placeholder='http://127.0.0.1:8787'
-                  className='h-10 rounded-lg'
+                  className='h-10'
                   value={base}
                   onChange={(e) => setBase(e.target.value)}
                 />
@@ -183,7 +176,7 @@ export function LoginPage() {
               </p>
             ) : null}
             <Button
-              className='mt-2 h-10 w-full rounded-lg font-medium'
+              className='mt-2 h-10 w-full'
               type='submit'
               disabled={pending}
             >

@@ -183,7 +183,7 @@ export function AboutPane() {
               href={data.html_url}
               target='_blank'
               rel='noreferrer'
-              className='inline-flex items-center gap-1 text-sm text-primary hover:underline'
+              className='inline-flex items-center gap-1 text-sm text-primary-ink hover:underline'
             >
               GitHub Release
               <ExternalLink className='size-3.5' />

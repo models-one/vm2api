@@ -32,7 +32,10 @@ export function CopyChip({
     >
       <span className='truncate'>{text}</span>
       {done ? (
-        <Check className='size-3 shrink-0 text-primary' aria-hidden='true' />
+        <Check
+          className='size-3 shrink-0 text-primary-ink'
+          aria-hidden='true'
+        />
       ) : (
         <Copy
           className='size-3 shrink-0 text-muted-foreground group-hover:text-foreground'
@@ -71,7 +74,7 @@ export function CopyButton({
       }}
     >
       {done ? (
-        <Check className='size-3.5 text-primary' aria-hidden='true' />
+        <Check className='size-3.5 text-primary-ink' aria-hidden='true' />
       ) : (
         <Copy className='size-3.5' aria-hidden='true' />
       )}

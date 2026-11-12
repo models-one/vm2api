@@ -76,7 +76,7 @@ export function TierBadge({ vm, className }: { vm: Vm; className?: string }) {
   return (
     <span
       className={cn(
-        'inline-flex h-[18px] shrink-0 items-center rounded-[5px] px-1.5 text-[10px] leading-none font-bold tracking-[0.04em] uppercase',
+        'inline-flex h-[18px] shrink-0 items-center rounded-[5px] px-1.5 text-[10px] leading-none font-semibold tracking-[0.04em] uppercase',
         skin.badge,
         className
       )}

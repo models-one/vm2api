@@ -37,10 +37,10 @@ export function WelcomeQuickStart() {
     >
       <div className='mx-auto max-w-6xl'>
         <Reveal className='mb-16 text-center md:mb-20'>
-          <p className='mb-3 text-xs font-medium tracking-widest text-muted-foreground uppercase'>
+          <p className='mb-3 text-[13px] font-medium tracking-[0.03em] text-muted-foreground'>
             快速开始
           </p>
-          <h2 className='text-2xl font-bold tracking-tight md:text-3xl'>
+          <h2 className='text-[1.75rem] leading-[1.2] font-semibold tracking-[-0.022em] md:text-[2.5rem] md:leading-[1.15]'>
             三步用起来
           </h2>
           <p className='mx-auto mt-3 max-w-md text-sm leading-relaxed text-muted-foreground'>
@@ -57,10 +57,10 @@ export function WelcomeQuickStart() {
               className='flex flex-col items-center text-center'
             >
               <div className='relative mb-6'>
-                <div className='flex size-16 items-center justify-center rounded-2xl border border-border/50 bg-muted/30 text-muted-foreground'>
+                <div className='flex size-16 items-center justify-center rounded-xl border bg-field text-muted-foreground edge-highlight'>
                   <Icon aria-hidden className='size-6' strokeWidth={1.5} />
                 </div>
-                <span className='absolute -top-2 -right-2 flex size-6 items-center justify-center rounded-full bg-foreground text-xs font-bold text-background'>
+                <span className='absolute -top-2 -right-2 flex size-6 items-center justify-center rounded-full bg-foreground text-xs font-semibold text-background'>
                   {n}
                 </span>
               </div>

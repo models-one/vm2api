@@ -268,7 +268,7 @@ export function LogsPage() {
                 {filterCount > 0 ? (
                   <Badge
                     variant='secondary'
-                    className='h-4.5 min-w-[18px] rounded-full bg-primary/10 px-1 text-[10px] text-primary'
+                    className='h-4.5 min-w-[18px] rounded-full bg-primary/10 px-1 text-[10px] text-primary-ink'
                   >
                     {filterCount}
                   </Badge>

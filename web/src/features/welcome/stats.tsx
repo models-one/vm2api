@@ -18,7 +18,7 @@ export function WelcomeStats() {
             delay={i * 80}
             className='flex flex-col items-center px-2 text-center'
           >
-            <span className='text-3xl font-bold tracking-tight tabular-nums md:text-4xl'>
+            <span className='text-3xl font-semibold tracking-tight tabular-nums md:text-4xl'>
               {f.value}
             </span>
             <span className='mt-2 max-w-[14rem] text-xs leading-relaxed text-muted-foreground md:text-sm'>

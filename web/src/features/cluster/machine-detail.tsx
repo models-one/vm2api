@@ -381,7 +381,7 @@ export function MachineDetail({
     <>
       <MachineTabs machines={machines} selectedId={m.id} onSelect={onSelect} />
       <div className='flex flex-wrap items-center gap-x-2.5 gap-y-2 px-4 py-3'>
-        <span className='text-[15px] font-bold'>{m.name}</span>
+        <span className='text-[15px] font-semibold'>{m.name}</span>
         <MachineChip role={m.role} />
         <span className='field-host text-xs text-muted-foreground'>
           {m.address}

@@ -213,7 +213,7 @@ function ToggleRow({
         <span
           className={cn(
             'font-mono text-[11px] tracking-wide',
-            checked ? 'text-primary' : 'text-muted-foreground'
+            checked ? 'text-primary-ink' : 'text-muted-foreground'
           )}
         >
           {checked ? '开' : '关'}

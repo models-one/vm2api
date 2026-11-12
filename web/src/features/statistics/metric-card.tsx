@@ -9,7 +9,7 @@ const ACCENTS: Record<Accent, { glow: string; iconBg: string; text: string }> =
     primary: {
       glow: 'bg-primary/10',
       iconBg: 'bg-primary/10 dark:bg-primary/15',
-      text: 'text-primary',
+      text: 'text-primary-ink',
     },
     emerald: {
       glow: 'bg-emerald-500/10',
@@ -171,7 +171,7 @@ export function BentoMetricCard({
         <div className='mt-3'>
           <h3
             className={cn(
-              'text-2xl font-bold tracking-tight text-foreground tabular-nums md:text-3xl',
+              'text-2xl font-semibold tracking-tight text-foreground tabular-nums md:text-3xl',
               'transition-opacity duration-200',
               animating && 'opacity-80'
             )}

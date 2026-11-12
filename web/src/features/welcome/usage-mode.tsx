@@ -44,11 +44,11 @@ export function WelcomeUsageMode({
       className='relative z-10 px-6 pb-4'
       aria-labelledby='welcome-usage'
     >
-      <div className='mx-auto flex max-w-6xl flex-col gap-4 rounded-2xl border bg-card p-4 shadow-xs sm:p-6'>
+      <div className='mx-auto flex max-w-6xl flex-col gap-4 rounded-xl border bg-card p-4 edge-highlight sm:p-6'>
         <div className='flex max-w-2xl flex-col gap-1'>
           <h2
             id='welcome-usage'
-            className='text-xl font-semibold tracking-tight sm:text-2xl'
+            className='text-xl font-semibold tracking-[-0.02em] sm:text-[1.75rem] sm:leading-[1.2]'
           >
             先选这台网关怎么用
           </h2>
@@ -63,7 +63,7 @@ export function WelcomeUsageMode({
           aria-label='用法'
           aria-describedby={error ? 'welcome-usage-error' : undefined}
           aria-invalid={error ? true : undefined}
-          className='gap-0 overflow-hidden rounded-2xl border bg-background/70'
+          className='gap-0 overflow-hidden rounded-lg border bg-field'
         >
           {OPTIONS.map((option) => (
             <div

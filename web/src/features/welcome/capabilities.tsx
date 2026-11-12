@@ -50,10 +50,10 @@ export function WelcomeCapabilities() {
     >
       <div className='mx-auto max-w-6xl'>
         <Reveal className='mb-16 max-w-lg'>
-          <p className='mb-3 text-xs font-medium tracking-widest text-muted-foreground uppercase'>
+          <p className='mb-3 text-[13px] font-medium tracking-[0.03em] text-muted-foreground'>
             核心能力
           </p>
-          <h2 className='text-2xl leading-tight font-bold tracking-tight md:text-3xl'>
+          <h2 className='text-[1.75rem] leading-[1.2] font-semibold tracking-[-0.022em] md:text-[2.5rem] md:leading-[1.15]'>
             官方客户端在槽里跑，
             <br />
             网关只负责调度与隔离
@@ -62,7 +62,7 @@ export function WelcomeCapabilities() {
         <div className='grid gap-px overflow-hidden rounded-xl border border-border bg-border md:grid-cols-3'>
           <Reveal
             animation='scale-in'
-            className='group bg-background p-7 transition-colors duration-300 hover:bg-muted/20 md:col-span-2 md:p-8'
+            className='group bg-card p-7 transition-colors duration-200 hover:bg-secondary md:col-span-2 md:p-8'
           >
             <CellHead num='01' title='协议兼容' />
             <p className='text-sm leading-relaxed text-muted-foreground'>
@@ -72,7 +72,7 @@ export function WelcomeCapabilities() {
               {PROTOCOLS.map((p) => (
                 <li
                   key={p.path}
-                  className='flex flex-col gap-0.5 rounded-lg border border-border/30 bg-muted/20 px-3 py-2 transition-colors duration-300 hover:border-blue-500/30 hover:bg-blue-500/5'
+                  className='flex flex-col gap-0.5 rounded-md border bg-field px-3 py-2 transition-colors duration-200 hover:bg-accent'
                 >
                   <code className='truncate font-mono text-[11.5px]'>
                     {p.path}
@@ -88,7 +88,7 @@ export function WelcomeCapabilities() {
           <Reveal
             animation='scale-in'
             delay={100}
-            className='group bg-background p-7 transition-colors duration-300 hover:bg-muted/20 md:p-8'
+            className='group bg-card p-7 transition-colors duration-200 hover:bg-secondary md:p-8'
           >
             <CellHead num='02' title='槽位隔离' />
             <p className='text-sm leading-relaxed text-muted-foreground'>
@@ -96,14 +96,14 @@ export function WelcomeCapabilities() {
             </p>
             <div className='mt-5 flex items-center justify-center'>
               <div className='relative'>
-                <div className='flex size-16 items-center justify-center rounded-2xl border border-emerald-500/20 bg-emerald-500/5'>
+                <div className='flex size-16 items-center justify-center rounded-xl border bg-field edge-highlight'>
                   <Boxes
                     aria-hidden
-                    className='size-7 text-emerald-500/70'
+                    className='size-7 text-secondary-foreground'
                     strokeWidth={1.5}
                   />
                 </div>
-                <span className='absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-emerald-500'>
+                <span className='absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-(--welcome-success)'>
                   <ShieldCheck aria-hidden className='size-2.5 text-white' />
                 </span>
               </div>
@@ -113,7 +113,7 @@ export function WelcomeCapabilities() {
           <Reveal
             animation='scale-in'
             delay={200}
-            className='group bg-background p-7 transition-colors duration-300 hover:bg-muted/20 md:p-8'
+            className='group bg-card p-7 transition-colors duration-200 hover:bg-secondary md:p-8'
           >
             <CellHead num='03' title='进槽前把关' />
             <p className='text-sm leading-relaxed text-muted-foreground'>
@@ -125,8 +125,8 @@ export function WelcomeCapabilities() {
                   <span
                     className={
                       i === 1
-                        ? 'flex size-6 items-center justify-center rounded-full border border-blue-500/30 bg-blue-500/20 text-[10px] font-bold text-blue-500'
-                        : 'flex size-6 items-center justify-center rounded-full border border-border/40 bg-muted text-[10px] font-bold text-muted-foreground'
+                        ? 'flex size-6 items-center justify-center rounded-full border border-primary/40 bg-primary/15 text-[10px] font-semibold text-primary-ink'
+                        : 'flex size-6 items-center justify-center rounded-full border bg-muted text-[10px] font-semibold text-muted-foreground'
                     }
                   >
                     {i + 1}
@@ -141,7 +141,7 @@ export function WelcomeCapabilities() {
           <Reveal
             animation='scale-in'
             delay={300}
-            className='group bg-background p-7 transition-colors duration-300 hover:bg-muted/20 md:col-span-2 md:p-8'
+            className='group bg-card p-7 transition-colors duration-200 hover:bg-secondary md:col-span-2 md:p-8'
           >
             <CellHead num='04' title='额度感知调度' />
             <p className='text-sm leading-relaxed text-muted-foreground'>
@@ -155,18 +155,18 @@ export function WelcomeCapabilities() {
               ].map((w) => (
                 <div
                   key={w.label}
-                  className='rounded-lg border border-border/30 bg-muted/20 px-3 py-2.5'
+                  className='rounded-md border bg-field px-3 py-2.5'
                 >
                   <div className='flex items-center justify-between text-xs'>
                     <span className='text-muted-foreground'>{w.label}</span>
                     <Activity
                       aria-hidden
-                      className='size-3.5 text-violet-500/70'
+                      className='size-3.5 text-muted-foreground'
                     />
                   </div>
                   <div className='mt-2 h-1.5 overflow-hidden rounded-full bg-muted'>
                     <div
-                      className='h-full rounded-full bg-gradient-to-r from-blue-400 to-violet-500'
+                      className='h-full rounded-full bg-primary'
                       style={{ width: `${w.pct}%` }}
                     />
                   </div>

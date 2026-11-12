@@ -53,7 +53,7 @@ const LIVE: Record<LiveKey, { legend: string; swatch: string; text: string }> =
     live: {
       legend: '上传中',
       swatch: 'bg-primary',
-      text: 'text-primary',
+      text: 'text-primary-ink',
     },
     idle: {
       legend: '开 · 原生就绪',
@@ -957,7 +957,7 @@ function RelatedRow({
       <span
         className={cn(
           'font-mono text-xs',
-          on ? 'text-primary' : 'text-muted-foreground'
+          on ? 'text-primary-ink' : 'text-muted-foreground'
         )}
       >
         {on === null ? '…' : on ? '开' : '关'}

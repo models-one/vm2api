@@ -56,11 +56,10 @@ export function StarHint() {
       onMouseLeave={() => setPaused(false)}
       onFocus={() => setPaused(true)}
       onBlur={() => setPaused(false)}
-      className='animate-settings-pane-in fixed inset-x-4 bottom-4 z-50 overflow-hidden rounded-xl border border-primary/30 bg-popover text-popover-foreground shadow-lg sm:inset-x-auto sm:right-4 sm:w-[22rem]'
+      className='animate-settings-pane-in fixed inset-x-4 bottom-4 z-50 overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-lg edge-highlight sm:inset-x-auto sm:right-4 sm:w-[22rem]'
     >
-      <div className='pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/12 via-transparent to-transparent' />
       <div className='relative flex gap-3 p-4 pe-10'>
-        <span className='grid size-10 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground shadow-sm'>
+        <span className='grid size-10 shrink-0 place-items-center rounded-lg border bg-accent text-foreground'>
           <Star aria-hidden className='size-5 fill-current' />
         </span>
         <div className='min-w-0 space-y-2.5'>

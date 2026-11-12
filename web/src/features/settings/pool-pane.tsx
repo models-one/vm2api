@@ -396,7 +396,7 @@ function SummaryButton({
       className='h-auto min-h-24 min-w-0 justify-start gap-3 px-3 py-3 text-left'
       onClick={onClick}
     >
-      <span className='grid size-8 shrink-0 place-items-center rounded-md bg-primary/10 text-primary'>
+      <span className='grid size-8 shrink-0 place-items-center rounded-md bg-primary/10 text-primary-ink'>
         <Icon className='size-4' aria-hidden />
       </span>
       <span className='min-w-0'>
@@ -599,7 +599,7 @@ export function PoolPane({
           ref={(node) => {
             triggerRefs.current.retry = node
           }}
-          className='inline-flex min-h-11 items-center gap-1 text-primary hover:underline disabled:cursor-not-allowed disabled:opacity-50'
+          className='inline-flex min-h-11 items-center gap-1 text-primary-ink hover:underline disabled:cursor-not-allowed disabled:opacity-50'
           onClick={() => begin('retry')}
         >
           <ArrowRightLeft className='size-3.5' aria-hidden /> 重试与切号
@@ -610,19 +610,19 @@ export function PoolPane({
           ref={(node) => {
             triggerRefs.current.circuit = node
           }}
-          className='inline-flex min-h-11 items-center gap-1 text-primary hover:underline disabled:cursor-not-allowed disabled:opacity-50'
+          className='inline-flex min-h-11 items-center gap-1 text-primary-ink hover:underline disabled:cursor-not-allowed disabled:opacity-50'
           onClick={() => begin('circuit')}
         >
           <ShieldAlert className='size-3.5' aria-hidden /> 故障保护
         </button>
         <a
-          className='inline-flex min-h-11 items-center gap-1 text-primary hover:underline'
+          className='inline-flex min-h-11 items-center gap-1 text-primary-ink hover:underline'
           href='/console/#/vm'
         >
           <Link2 className='size-3.5' aria-hidden /> 账号优先级 · VM 调度
         </a>
         <a
-          className='inline-flex min-h-11 items-center gap-1 text-primary hover:underline'
+          className='inline-flex min-h-11 items-center gap-1 text-primary-ink hover:underline'
           href='/console/#/settings/sticky'
         >
           <Link2 className='size-3.5' aria-hidden /> 粘性设置

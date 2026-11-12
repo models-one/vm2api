@@ -229,13 +229,13 @@ export function ProxyOverview({
                     title={`${c.label}：${c.proxies.length} 条代理，当前筛选下空位 ${c.free}。点击筛选该地区`}
                     className={cn(
                       '-mx-1 mb-1.5 flex items-baseline gap-1.5 rounded px-1 text-[11px] whitespace-nowrap transition-colors hover:bg-accent/60',
-                      on ? 'text-primary' : 'text-muted-foreground'
+                      on ? 'text-primary-ink' : 'text-muted-foreground'
                     )}
                   >
                     <span
                       className={cn(
                         'font-medium',
-                        on ? 'text-primary' : 'text-foreground/85'
+                        on ? 'text-primary-ink' : 'text-foreground/85'
                       )}
                     >
                       {c.label}

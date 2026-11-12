@@ -74,7 +74,7 @@ export function FilterCombobox({
                 className='cursor-pointer'
               >
                 <span className='flex-1'>{allLabel}</span>
-                {!value ? <Check className='h-4 w-4 text-primary' /> : null}
+                {!value ? <Check className='h-4 w-4 text-primary-ink' /> : null}
               </CommandItem>
               {options.map((option) => (
                 <CommandItem
@@ -88,7 +88,7 @@ export function FilterCombobox({
                 >
                   <span className='flex-1 truncate'>{option.name}</span>
                   {value === option.id ? (
-                    <Check className='h-4 w-4 text-primary' />
+                    <Check className='h-4 w-4 text-primary-ink' />
                   ) : null}
                 </CommandItem>
               ))}

@@ -181,10 +181,10 @@ export function WelcomeModuleGuide({ views }: { views?: string[] | null }) {
       className='relative z-10 px-6 pt-2 pb-8'
       aria-labelledby='welcome-modules'
     >
-      <div className='mx-auto flex max-w-6xl flex-col gap-6 rounded-2xl border bg-card p-4 shadow-xs sm:p-6'>
+      <div className='mx-auto flex max-w-6xl flex-col gap-6 rounded-xl border bg-card p-4 edge-highlight sm:p-6'>
         <h2
           id='welcome-modules'
-          className='text-xl font-semibold tracking-tight sm:text-2xl'
+          className='text-xl font-semibold tracking-[-0.02em] sm:text-[1.75rem] sm:leading-[1.2]'
         >
           各页在管什么
         </h2>
@@ -192,7 +192,7 @@ export function WelcomeModuleGuide({ views }: { views?: string[] | null }) {
           {GROUPS.map((group) => (
             <div key={group.title} className='min-w-0'>
               <h3 className='mb-2 text-sm font-medium'>{group.title}</h3>
-              <dl className='divide-y rounded-2xl border bg-background/70'>
+              <dl className='divide-y rounded-lg border bg-field'>
                 {group.items.map((item) => {
                   const allowed = hasPanelView(views, item.view)
                   return (

@@ -59,7 +59,7 @@ function SummaryButton({
       onClick={onClick}
       className='h-auto min-h-24 w-full min-w-0 justify-start gap-3 px-4 py-3 text-left'
     >
-      <Icon className='size-4 shrink-0 text-primary' aria-hidden />
+      <Icon className='size-4 shrink-0 text-primary-ink' aria-hidden />
       <span className='min-w-0 flex-1'>
         <span className='flex items-center gap-2 text-xs text-muted-foreground'>
           <span className='truncate'>{title}</span>

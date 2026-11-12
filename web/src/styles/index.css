@@ -38,16 +38,25 @@
     @apply min-h-svh w-full bg-background text-foreground has-[div[data-variant='inset']]:bg-sidebar;
   }
 
+  /* Linear 字距：标题负字距随字号加大（28px ≈ -0.6px），正文归零。
+     只到 -0.02em：中文字面比拉丁字母满，再紧就挤了。 */
+  h1,
+  h2 {
+    letter-spacing: -0.02em;
+  }
+  h3,
+  h4 {
+    letter-spacing: -0.011em;
+  }
+
   /* 字段字形：度量走等宽数字，身份走等宽，标签走 sans。 */
   .field-host {
-    font-family:
-      ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    @apply font-mono;
     font-variant-numeric: tabular-nums;
     letter-spacing: -0.02em;
   }
   .field-metric {
-    font-family:
-      ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    @apply font-mono;
     font-variant-numeric: tabular-nums;
     font-feature-settings:
       'tnum' 1,
@@ -140,6 +149,12 @@
     transparent 0 3px,
     oklch(1 0 0 / 28%) 3px 5px
   );
+}
+
+/* Linear 抬起面板的顶边高光：深色端一道 4% 白的内描边，让 surface 有
+   「像素渲染」的边缘；亮色端为 transparent。替代 shadow-sm，不往外投影。 */
+@utility edge-highlight {
+  box-shadow: inset 0 1px 0 0 var(--edge-highlight);
 }
 
 @utility faded-bottom {
@@ -276,49 +291,21 @@
 }
 
 /* ── 欢迎页（公开落地页）────────────────────────────────────────
-   落地页对齐 newapi 新版首页：中性黑白主色、1rem 圆角、蓝紫点缀。
-   只在 .welcome-theme 作用域内覆盖 token，控制台本身的绿色主题不动；
+   Linear 营销面：深色端底色压到 canvas #010102，卡片 surface-1，浮层
+   surface-3；亮色端跟控制台同一套反相表面。主 CTA 是唯一的薰衣草块。
    独立登录页（#/login）也套这个类。 */
 .welcome-theme {
-  --radius: 1rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.13 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.95 0 0);
-  --secondary-foreground: oklch(0.145 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.49 0 0);
-  --accent: oklch(0.95 0 0);
-  --accent-foreground: oklch(0.145 0 0);
-  --border: oklch(0.93 0 0);
-  --input: oklch(0.93 0 0);
-  --ring: oklch(0.708 0 0);
-  --welcome-success: oklch(0.596 0.145 163.225);
+  /* Linear semantic-success #27a644 在白底只有 3.2:1，亮色端压暗一档。 */
+  --welcome-success: #1d7f34;
 }
 .dark .welcome-theme {
-  --background: oklch(0.235 0 0);
-  --foreground: oklch(0.965 0 0);
-  --card: oklch(0.285 0 0);
-  --card-foreground: oklch(0.965 0 0);
-  --popover: oklch(0.305 0 0);
-  --popover-foreground: oklch(0.965 0 0);
-  --primary: oklch(0.965 0 0);
-  --primary-foreground: oklch(0.155 0 0);
-  --secondary: oklch(0.335 0 0);
-  --secondary-foreground: oklch(0.965 0 0);
-  --muted: oklch(0.305 0 0);
-  --muted-foreground: oklch(0.78 0 0);
-  --accent: oklch(0.365 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 17%);
-  --ring: oklch(0.68 0 0);
-  --welcome-success: oklch(0.696 0.17 162.48);
+  --background: #010102;
+  --card: #0f1011;
+  --popover: #18191a;
+  --secondary: #141516;
+  --muted: #141516;
+  --accent: #18191a;
+  --welcome-success: #27a644;
 }
 
 @keyframes welcome-fade-up {

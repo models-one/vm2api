@@ -36,7 +36,7 @@ function Metric({
       <div className='text-[10px] font-semibold tracking-wider text-muted-foreground uppercase'>
         {label}
       </div>
-      <div className='font-mono text-xl leading-none font-bold tabular-nums'>
+      <div className='font-mono text-xl leading-none font-semibold tabular-nums'>
         {value}
       </div>
     </div>

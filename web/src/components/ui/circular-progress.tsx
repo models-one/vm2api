@@ -54,7 +54,7 @@ export function CircularProgress({
           strokeLinecap='round'
           className={cn(
             'transition-all duration-200 ease-in-out',
-            toneClassName || 'text-primary'
+            toneClassName || 'text-primary-ink'
           )}
         />
       </svg>

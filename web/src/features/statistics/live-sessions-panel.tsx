@@ -129,7 +129,7 @@ export function LiveSessionsPanel({ className }: { className?: string }) {
                     <TooltipTrigger asChild>
                       <span
                         className={cn(
-                          'cursor-help text-xs font-bold tracking-wide',
+                          'cursor-help text-xs font-semibold tracking-wide',
                           status.color,
                           status.label === 'IDLE' && 'font-normal'
                         )}
@@ -155,7 +155,7 @@ export function LiveSessionsPanel({ className }: { className?: string }) {
           className='flex cursor-pointer items-center justify-center gap-1 border-t border-slate-200 bg-slate-100/50 p-2 text-xs text-slate-600 transition-colors hover:text-slate-900 dark:border-white/[0.06] dark:bg-white/[0.02] dark:text-muted-foreground dark:hover:text-foreground'
         >
           <span>查看全部</span>
-          <span className='font-medium text-primary'>({total})</span>
+          <span className='font-medium text-primary-ink'>({total})</span>
         </button>
       ) : null}
     </BentoCard>

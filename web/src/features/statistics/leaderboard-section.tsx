@@ -358,7 +358,7 @@ export function LeaderboardSection({
                         <div
                           className={cn(
                             'flex items-center justify-end',
-                            isBold(col) && 'font-bold'
+                            isBold(col) && 'font-semibold'
                           )}
                         >
                           {col.header}
@@ -397,7 +397,7 @@ export function LeaderboardSection({
                           className={cn(
                             'text-right tabular-nums',
                             col.mono && 'font-mono',
-                            isBold(col) && 'font-bold'
+                            isBold(col) && 'font-semibold'
                           )}
                         >
                           {col.cell(row)}

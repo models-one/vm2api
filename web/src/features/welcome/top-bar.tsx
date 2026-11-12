@@ -48,8 +48,8 @@ export function WelcomeTopBar({
           className={cn(
             'flex items-center justify-between transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none',
             scrolled
-              ? 'h-12 rounded-2xl bg-background/60 pr-1.5 pl-4 shadow-[0_2px_16px_-6px_rgba(0,0,0,0.08)] ring-[0.5px] ring-border/50 backdrop-blur-2xl dark:shadow-[0_2px_16px_-6px_rgba(0,0,0,0.4)]'
-              : 'h-16 px-2'
+              ? 'h-12 rounded-xl border bg-background/80 pr-1.5 pl-4 backdrop-blur-xl'
+              : 'h-14 px-2'
           )}
         >
           <button
@@ -57,10 +57,12 @@ export function WelcomeTopBar({
             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
             className='group flex shrink-0 items-center gap-2.5 rounded-lg focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none'
           >
-            <span className='grid size-7 place-items-center rounded-lg bg-foreground text-background transition-transform duration-300 group-hover:scale-105'>
+            <span className='grid size-7 place-items-center rounded-md bg-primary text-primary-foreground'>
               <Logo aria-hidden className='size-4' />
             </span>
-            <span className='text-sm font-semibold tracking-tight'>vm2api</span>
+            <span className='text-sm font-semibold tracking-[-0.01em]'>
+              vm2api
+            </span>
           </button>
 
           <div className='flex items-center gap-0.5'>
@@ -90,7 +92,7 @@ export function WelcomeTopBar({
               target='_blank'
               rel='noreferrer'
               aria-label='GitHub'
-              className='inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none'
+              className='inline-flex size-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none'
             >
               <IconGithub aria-hidden className='size-4' />
             </a>
@@ -101,11 +103,7 @@ export function WelcomeTopBar({
                 <span className='hidden max-w-28 truncate text-xs text-muted-foreground sm:inline'>
                   {username}
                 </span>
-                <Button
-                  asChild
-                  size='sm'
-                  className='group h-8 rounded-lg px-3.5 text-xs font-medium'
-                >
+                <Button asChild size='sm' className='group h-8 px-3.5'>
                   <Link to='/overview'>
                     进入控制台
                     <ArrowRight
@@ -116,11 +114,7 @@ export function WelcomeTopBar({
                 </Button>
               </div>
             ) : (
-              <Button
-                asChild
-                size='sm'
-                className='h-8 rounded-lg px-3.5 text-xs font-medium'
-              >
+              <Button asChild size='sm' className='h-8 px-3.5'>
                 <Link to='/login'>登录</Link>
               </Button>
             )}

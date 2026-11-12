@@ -326,7 +326,7 @@ function ClearChip({ label, onClear }: { label: string; onClear: () => void }) {
     <button
       type='button'
       onClick={onClear}
-      className='inline-flex h-7 items-center gap-1 rounded-md bg-primary/10 px-2 text-xs font-medium text-primary transition-colors hover:bg-primary/15'
+      className='inline-flex h-7 items-center gap-1 rounded-md bg-primary/10 px-2 text-xs font-medium text-primary-ink transition-colors hover:bg-primary/15'
       aria-label={`清除筛选：${label}`}
     >
       {label}

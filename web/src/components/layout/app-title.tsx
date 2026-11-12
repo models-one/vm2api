@@ -12,10 +12,10 @@ import {
 import { Button } from '../ui/button'
 
 const CHIP_CLASS =
-  'inline-flex h-8 min-w-0 items-center gap-1.5 rounded-lg border border-sidebar-foreground/15 bg-sidebar/70 px-2.5 text-[13px] font-medium text-sidebar-foreground shadow-xs outline-hidden transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-sidebar-ring'
+  'inline-flex h-8 min-w-0 items-center gap-1.5 rounded-md border bg-field px-2.5 text-[13px] font-medium text-sidebar-foreground outline-hidden transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-sidebar-ring'
 
 const CHIP_LINK_CLASS =
-  'cursor-pointer hover:border-primary/45 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+  'cursor-pointer hover:bg-accent hover:text-accent-foreground'
 
 // 两枚链接按内容分一行且不折行：中文标签被压窄时会逐字竖排；空间不够先缩箭头，再省略文字。
 const CHIP_PAIR_CLASS = 'flex-auto justify-center whitespace-nowrap'
@@ -28,7 +28,7 @@ export function AppTitle({ version }: { version?: string }) {
   const { setOpenMobile } = useSidebar()
   return (
     <SidebarMenu>
-      <SidebarMenuItem className='rounded-xl border border-primary/25 bg-gradient-to-br from-primary/12 via-primary/[0.03] to-transparent p-2.5 group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:bg-none group-data-[collapsible=icon]:p-0'>
+      <SidebarMenuItem className='rounded-lg border bg-card p-2.5 edge-highlight group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:shadow-none'>
         <div className='flex items-center gap-2'>
           <Link
             to='/overview'
@@ -36,17 +36,17 @@ export function AppTitle({ version }: { version?: string }) {
             aria-label='vm2api 概览'
             className='flex min-w-0 flex-1 items-center gap-2.5 rounded-lg outline-hidden focus-visible:ring-2 focus-visible:ring-sidebar-ring'
           >
-            <span className='grid size-10 shrink-0 place-items-center rounded-xl bg-slate-950 text-white shadow-md ring-1 ring-cyan-500/35 group-data-[collapsible=icon]:size-8'>
+            <span className='grid size-10 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground group-data-[collapsible=icon]:size-8'>
               <Logo
                 aria-hidden
                 className='size-5 group-data-[collapsible=icon]:size-4'
               />
             </span>
             <span className='grid min-w-0 leading-tight group-data-[collapsible=icon]:hidden'>
-              <span className='truncate text-base font-bold tracking-tight'>
+              <span className='truncate text-base font-semibold tracking-[-0.02em]'>
                 vm2api
               </span>
-              <span className='truncate text-xs text-sidebar-foreground/60'>
+              <span className='truncate text-xs text-muted-foreground'>
                 管理台
               </span>
             </span>
@@ -102,7 +102,7 @@ function VersionChip({ version }: { version?: string }) {
       title={`v${version} 发布说明`}
       className={cn(CHIP_CLASS, CHIP_LINK_CLASS, VERSION_CHIP_CLASS)}
     >
-      <span className='size-2.5 shrink-0 rounded-full bg-primary shadow-[0_0_0_3px] shadow-primary/20' />
+      <span className='size-2 shrink-0 rounded-full bg-(--status-ok-solid)' />
       <span className='font-mono font-semibold break-all tabular-nums'>
         v{version}
       </span>

@@ -246,7 +246,7 @@ export function StatisticsChartCard({
                 'cursor-pointer px-3 py-1.5 text-xs font-medium transition-colors',
                 'border-l border-border/50 first:border-l-0 dark:border-white/[0.06]',
                 'hover:bg-muted/50 dark:hover:bg-white/[0.03]',
-                'data-[active=true]:bg-primary/10 data-[active=true]:text-primary'
+                'data-[active=true]:bg-primary/10 data-[active=true]:text-primary-ink'
               )}
             >
               {option.label}
@@ -273,7 +273,7 @@ export function StatisticsChartCard({
             <span className='text-[10px] tracking-wide text-muted-foreground uppercase'>
               {tab.label}
             </span>
-            <span className='text-base font-bold tabular-nums'>
+            <span className='text-base font-semibold tabular-nums'>
               {formatMetric(tab.id, tabTotals[tab.id])}
             </span>
           </button>
@@ -532,7 +532,7 @@ function LegendAction({
         'cursor-pointer rounded px-2 py-0.5 text-[10px] whitespace-nowrap transition-colors',
         disabled
           ? 'cursor-not-allowed text-muted-foreground/50'
-          : 'text-primary hover:bg-primary/10 hover:text-primary/80'
+          : 'text-primary-ink hover:bg-primary/10 hover:text-primary-ink/80'
       )}
     >
       {children}

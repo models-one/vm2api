@@ -25,7 +25,7 @@ export function PaneSection({
   return (
     <Card className={cn('gap-0 py-0', className)}>
       <div className='flex items-start gap-3 border-b px-4 py-3'>
-        <span className='mt-0.5 grid size-7 shrink-0 place-items-center rounded-md bg-primary/10 text-primary'>
+        <span className='mt-0.5 grid size-7 shrink-0 place-items-center rounded-md bg-primary/10 text-primary-ink'>
           <Icon className='size-4' aria-hidden />
         </span>
         <div className='min-w-0 flex-1'>

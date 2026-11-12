@@ -87,24 +87,24 @@ const PALETTE = [
 
 const ACCENT = {
   emerald: {
-    card: 'border-emerald-500/30 from-emerald-500/12',
+    card: '',
     icon: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
   },
   blue: {
-    card: 'border-blue-500/30 from-blue-500/12',
+    card: '',
     icon: 'bg-blue-500/15 text-blue-600 dark:text-blue-400',
   },
   amber: {
-    card: 'border-amber-500/30 from-amber-500/12',
+    card: '',
     icon: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
   },
   purple: {
-    card: 'border-purple-500/30 from-purple-500/12',
+    card: '',
     icon: 'bg-purple-500/15 text-purple-600 dark:text-purple-400',
   },
 } as const
 
-/** 顶部四张渐变指标卡：大数字 + 一行口径说明。 */
+/** 顶部四张指标卡：大数字 + 一行口径说明。卡面中性，只用图标底色区分口径。 */
 export function MetricCard({
   accent,
   icon,
@@ -122,7 +122,7 @@ export function MetricCard({
   return (
     <div
       className={cn(
-        'min-w-0 rounded-xl border bg-gradient-to-br to-transparent p-3.5',
+        'min-w-0 rounded-lg border bg-card p-3.5 edge-highlight',
         tone.card
       )}
     >
@@ -134,7 +134,7 @@ export function MetricCard({
           {icon}
         </span>
       </div>
-      <p className='truncate text-2xl leading-tight font-bold tabular-nums'>
+      <p className='truncate text-2xl leading-tight font-semibold tabular-nums'>
         {value}
       </p>
       <p className='mt-1 truncate text-[11px] text-muted-foreground'>{hint}</p>
@@ -678,7 +678,7 @@ function QuotaWindows({
             <div>
               <p
                 className={cn(
-                  'text-2xl leading-tight font-bold tabular-nums',
+                  'text-2xl leading-tight font-semibold tabular-nums',
                   proj.remaining == null && 'text-[color:var(--text-tertiary)]'
                 )}
               >
@@ -720,9 +720,9 @@ function StatsBody({ vm, accounts }: { vm: Vm; accounts?: UsageAccountRow[] }) {
 
   return (
     <div className='space-y-3 pb-1'>
-      <div className='flex items-center justify-between gap-3 rounded-xl border border-primary/25 bg-gradient-to-r from-primary/10 to-transparent p-3'>
+      <div className='flex items-center justify-between gap-3 rounded-lg border bg-card p-3 edge-highlight'>
         <div className='flex min-w-0 items-center gap-3'>
-          <span className='grid size-10 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground'>
+          <span className='grid size-10 shrink-0 place-items-center rounded-lg border bg-accent text-foreground'>
             <BarChart3 className='size-5' />
           </span>
           <div className='min-w-0'>

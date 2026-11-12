@@ -79,7 +79,7 @@ function PerformanceGauge({
       </div>
       <div className='min-w-0'>
         <div className='text-xs text-muted-foreground'>{label}</div>
-        <div className='font-mono text-xl font-bold'>{display}</div>
+        <div className='font-mono text-xl font-semibold'>{display}</div>
         <Badge
           variant='outline'
           className={cn('mt-1 text-[10px]', assessment.color)}

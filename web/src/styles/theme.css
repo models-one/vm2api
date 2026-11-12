@@ -1,23 +1,37 @@
 :root {
+  /*
+   * Linear 设计系统（DESIGN.md）。亮色端是派生的：Linear 只文档化了深色，
+   * 这里沿用它的反相表面（inverse-canvas #fff / inverse-surface-1 #f5f6f6）
+   * 和同一套薰衣草蓝。唯一的彩色强调是 primary，只给主按钮、焦点环、链接强调。
+   */
   --radius: 0.75rem;
-  --background: oklch(0.995 0.001 258);
-  --foreground: oklch(0.21 0.008 258);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.21 0.008 258);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.21 0.008 258);
-  --primary: oklch(0.52 0.115 157);
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.968 0.003 258);
-  --secondary-foreground: oklch(0.28 0.008 258);
-  --muted: oklch(0.968 0.003 258);
-  --muted-foreground: oklch(0.5 0.014 258);
-  --accent: oklch(0.955 0.018 157);
-  --accent-foreground: oklch(0.4 0.095 157);
+  --background: #ffffff;
+  --foreground: #0f1011;
+  --card: #ffffff;
+  --card-foreground: #0f1011;
+  --popover: #ffffff;
+  --popover-foreground: #0f1011;
+  --primary: #5e6ad2;
+  --primary-foreground: #ffffff;
+  --primary-hover: #828fff;
+  --primary-focus: #5e69d1;
+  /* 作为文字的 primary。白底上 #5e6ad2 本身 4.70:1，够用。 */
+  --primary-ink: #5e6ad2;
+  --secondary: #f5f6f6;
+  --secondary-foreground: #2b2d31;
+  --muted: #f5f6f6;
+  --muted-foreground: #62666d;
+  --accent: #eeeff1;
+  --accent-foreground: #0f1011;
   --destructive: oklch(0.5 0.18 16);
-  --border: oklch(0.916 0.005 258);
-  --input: oklch(0.916 0.005 258);
-  --ring: oklch(0.52 0.115 157);
+  --border: #e6e6e9;
+  --input: #d8d9dd;
+  --ring: #5e69d1;
+  /* 输入框底色：Linear text-input = surface-1。 */
+  --field: #ffffff;
+  /* 抬起面板顶边的发丝高光；亮色端不需要。 */
+  --edge-highlight: transparent;
+  --overlay: oklch(0 0 0 / 40%);
 
   /*
    * 语义色板。每族 5 档：1 surface · 2 muted · 3 fg · 4 solid · 5 ink。
@@ -113,9 +127,9 @@
 
   /* 三级文字：用于「累计消耗」这类字段标签。比 muted-foreground 再退一档，
      但仍是正文尺寸，所以照样守 4.5:1（实测 4.95）。 */
-  --text-tertiary: oklch(0.545 0.013 258);
+  --text-tertiary: #6b6f77;
   /* 卡内分组线。发丝级——可见但不切割版面（实测 1.27，刻意低于常规 border）。 */
-  --hairline: oklch(0 0 0 / 10%);
+  --hairline: #e6e6e9;
   /* 量表槽。用前景色低 alpha 叠加而非实色，这样它跟着等级底色走，
      在中性/Pro/Max 三种卡面上都保持同样的凹陷深度。 */
   --track: oklch(0 0 0 / 8.5%);
@@ -129,44 +143,57 @@
   --select-solid-fg: oklch(0.99 0.005 228);
 
   /* 浏览器自带表面 */
-  --selection: oklch(0.52 0.115 157 / 22%);
-  --scrollbar-thumb: oklch(0.5 0.014 258 / 40%);
+  --selection: color-mix(in oklch, #5e6ad2 22%, transparent);
+  --scrollbar-thumb: color-mix(in oklch, #62666d 40%, transparent);
 
-  --chart-1: oklch(0.6 0.13 157);
-  --chart-2: oklch(0.55 0.145 250);
+  /* chart-1 是品牌薰衣草；原来的青绿退到 chart-2，和 252° 的 Pro 蓝拉开。 */
+  --chart-1: #5e6ad2;
+  --chart-2: oklch(0.6 0.13 157);
   --chart-3: oklch(0.68 0.135 88);
   --chart-4: oklch(0.62 0.155 38);
   --chart-5: oklch(0.58 0.17 325);
 
-  --sidebar: var(--background);
-  --sidebar-foreground: var(--foreground);
+  --sidebar: #f5f6f6;
+  --sidebar-foreground: #2b2d31;
   --sidebar-primary: var(--primary);
   --sidebar-primary-foreground: var(--primary-foreground);
-  --sidebar-accent: var(--accent);
-  --sidebar-accent-foreground: var(--accent-foreground);
+  --sidebar-accent: #e9eaec;
+  --sidebar-accent-foreground: #0f1011;
   --sidebar-border: var(--border);
   --sidebar-ring: var(--ring);
 }
 
 .dark {
-  --background: oklch(0.155 0.006 258);
-  --foreground: oklch(0.955 0.004 258);
-  --card: oklch(0.185 0.006 258);
-  --card-foreground: oklch(0.955 0.004 258);
-  --popover: oklch(0.205 0.007 258);
-  --popover-foreground: oklch(0.955 0.004 258);
-  --primary: oklch(0.779 0.165 157);
-  --primary-foreground: oklch(0.2 0.045 157);
-  --secondary: oklch(0.255 0.007 258);
-  --secondary-foreground: oklch(0.955 0.004 258);
-  --muted: oklch(0.255 0.007 258);
-  --muted-foreground: oklch(0.72 0.012 258);
-  --accent: oklch(0.265 0.018 157);
-  --accent-foreground: oklch(0.85 0.13 157);
+  /*
+   * Linear 表面阶梯：canvas #010102 → surface-1 #0f1011 → surface-2 #141516
+   * → surface-3 #18191a。侧栏落在 canvas，内容面板 surface-1，卡片 surface-2，
+   * 菜单 / 浮层 surface-3。层级靠阶梯 + 1px 发丝边，不靠阴影。
+   */
+  --background: #0f1011;
+  --foreground: #f7f8f8;
+  --card: #141516;
+  --card-foreground: #f7f8f8;
+  --popover: #18191a;
+  --popover-foreground: #f7f8f8;
+  --primary: #5e6ad2;
+  --primary-foreground: #ffffff;
+  --primary-hover: #828fff;
+  --primary-focus: #5e69d1;
+  /* 深色上 #5e6ad2 作文字只有 3.89:1，链接强调改用 Linear 的浅薰衣草（6.37:1）。 */
+  --primary-ink: #828fff;
+  --secondary: #18191a;
+  --secondary-foreground: #d0d6e0;
+  --muted: #18191a;
+  --muted-foreground: #8a8f98;
+  --accent: #23252a;
+  --accent-foreground: #f7f8f8;
   --destructive: oklch(0.72 0.15 16);
-  --border: oklch(1 0 0 / 11%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.779 0.165 157);
+  --border: #23252a;
+  --input: #34343a;
+  --ring: #5e69d1;
+  --field: #0f1011;
+  --edge-highlight: oklch(1 0 0 / 4%);
+  --overlay: oklch(0 0 0 / 72%);
 
   --ok-1: oklch(0.28 0.048 157);
   --ok-2: oklch(0.52 0.08 157);
@@ -242,8 +269,9 @@
   --lane-api-border: oklch(1 0 0 / 65%);
   --lane-api-fg: oklch(0.98 0 0);
 
-  --text-tertiary: oklch(0.655 0.011 258);
-  --hairline: oklch(1 0 0 / 11%);
+  /* 介于 ink-subtle 与 ink-tertiary 之间：#62666d 只有 3.3:1，守不住正文 4.5。 */
+  --text-tertiary: #7d828a;
+  --hairline: #23252a;
   --track: oklch(1 0 0 / 13%);
 
   --select-surface: oklch(0.232 0.032 228);
@@ -252,22 +280,45 @@
   --select-solid: oklch(0.74 0.11 228);
   --select-solid-fg: oklch(0.17 0.03 228);
 
-  --selection: oklch(0.779 0.165 157 / 26%);
-  --scrollbar-thumb: oklch(0.72 0.012 258 / 38%);
+  --selection: color-mix(in oklch, #5e6ad2 40%, transparent);
+  --scrollbar-thumb: color-mix(in oklch, #8a8f98 38%, transparent);
 
-  --chart-1: oklch(0.78 0.145 157);
-  --chart-2: oklch(0.72 0.125 240);
+  --chart-1: #828fff;
+  --chart-2: oklch(0.78 0.145 157);
   --chart-3: oklch(0.82 0.135 88);
   --chart-4: oklch(0.74 0.145 35);
   --chart-5: oklch(0.72 0.145 320);
+
+  --sidebar: #010102;
+  --sidebar-foreground: #d0d6e0;
+  --sidebar-accent: #18191a;
+  --sidebar-accent-foreground: #f7f8f8;
+}
+
+/*
+ * 字体走默认 --font-sans / --font-mono，而不是 font-inter 类：字体切换器在
+ * 运行时拼出 `font-${font}`，Tailwind 扫不到，那个类从来没生成过。
+ * Linear Display / Text 是专有字体。按 DESIGN.md：macOS 落到 SF Pro，
+ * 跨平台首选 Inter；中文落到苹方 / 雅黑。
+ */
+@theme {
+  --font-sans:
+    'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text',
+    'SF Pro Display', system-ui, 'Segoe UI', Roboto, 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --font-mono:
+    'JetBrains Mono', 'Geist Mono', ui-monospace, 'SF Mono', SFMono-Regular,
+    Menlo, Monaco, Consolas, monospace;
 }
 
 @theme inline {
-  --font-inter: 'Inter', 'sans-serif';
+  --font-inter: var(--font-sans);
   --font-manrope: 'Manrope', 'sans-serif';
 
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
+  /* Linear 圆角：xs 4 · sm 6 · md 8（按钮 / 输入）· lg 12（卡片）· xl 16（大面板）。 */
+  --radius-xs: 4px;
+  --radius-sm: calc(var(--radius) - 6px);
+  --radius-md: calc(var(--radius) - 4px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
   --color-background: var(--background);
@@ -278,6 +329,11 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-focus: var(--primary-focus);
+  --color-primary-ink: var(--primary-ink);
+  --color-field: var(--field);
+  --color-overlay: var(--overlay);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);

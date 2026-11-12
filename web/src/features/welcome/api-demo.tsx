@@ -12,22 +12,16 @@ type Demo = {
   tone: { text: string; border: string; badge: string }
 }
 
+// Linear：截图里只留一个彩色强调。各端点标签共用薰衣草下划线，靠文字区分。
+const NEUTRAL_TONE = {
+  text: 'text-foreground',
+  border: 'border-primary',
+  badge: 'bg-secondary text-secondary-foreground',
+}
 const TONES = {
-  violet: {
-    text: 'text-violet-600 dark:text-violet-300',
-    border: 'border-violet-500',
-    badge: 'bg-violet-500/10 text-violet-600 dark:text-violet-300',
-  },
-  emerald: {
-    text: 'text-emerald-600 dark:text-emerald-300',
-    border: 'border-emerald-500',
-    badge: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-300',
-  },
-  amber: {
-    text: 'text-amber-600 dark:text-amber-300',
-    border: 'border-amber-500',
-    badge: 'bg-amber-500/10 text-amber-700 dark:text-amber-300',
-  },
+  violet: NEUTRAL_TONE,
+  emerald: NEUTRAL_TONE,
+  amber: NEUTRAL_TONE,
 }
 
 // Example payloads mirror the three entries documented on /guide/api.
@@ -86,7 +80,7 @@ const DEMOS: Demo[] = [
 
 const STRING_RE = /"[^"]*"/g
 
-/** Colors JSON-ish lines: keys sky, string values amber, punctuation muted. */
+/** Colors JSON-ish lines: keys lavender, string values ink-muted, punctuation muted. */
 function Json({ line }: { line: string }) {
   const parts: React.ReactNode[] = []
   let cursor = 0
@@ -94,7 +88,7 @@ function Json({ line }: { line: string }) {
     const start = m.index ?? 0
     if (start > cursor)
       parts.push(
-        <span key={`p${start}`} className='text-foreground/55'>
+        <span key={`p${start}`} className='text-muted-foreground'>
           {line.slice(cursor, start)}
         </span>
       )
@@ -105,11 +99,7 @@ function Json({ line }: { line: string }) {
     parts.push(
       <span
         key={`s${start}`}
-        className={
-          isKey
-            ? 'text-sky-700 dark:text-sky-300'
-            : 'text-amber-700 dark:text-amber-300'
-        }
+        className={isKey ? 'text-primary-ink' : 'text-secondary-foreground'}
       >
         {m[0]}
       </span>
@@ -118,7 +108,7 @@ function Json({ line }: { line: string }) {
   }
   if (cursor < line.length)
     parts.push(
-      <span key='tail' className='text-foreground/55'>
+      <span key='tail' className='text-muted-foreground'>
         {line.slice(cursor)}
       </span>
     )
@@ -139,11 +129,11 @@ export function ApiDemo({ baseUrl }: { baseUrl: string }) {
   ].join('\n')
 
   return (
-    <div className='mx-auto w-full max-w-2xl overflow-hidden rounded-2xl border border-border/60 bg-white/95 shadow-[0_20px_50px_-25px_rgba(15,23,42,0.18)] backdrop-blur-sm dark:border-white/[0.06] dark:bg-[#0b0f17]/95 dark:shadow-[0_20px_60px_-25px_rgba(0,0,0,0.7)]'>
+    <div className='mx-auto w-full max-w-2xl overflow-hidden rounded-xl border bg-card edge-highlight'>
       <div
         role='tablist'
         aria-label='接口示例'
-        className='flex items-center gap-1 border-b border-border/50 px-2 sm:px-3 dark:border-white/[0.05]'
+        className='flex items-center gap-1 border-b px-2 sm:px-3'
       >
         {DEMOS.map((d, i) => (
           <button
@@ -156,22 +146,22 @@ export function ApiDemo({ baseUrl }: { baseUrl: string }) {
               '-mb-px border-b-2 px-2.5 py-2.5 text-[11px] font-medium tracking-wide transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:px-3 sm:text-xs',
               i === active
                 ? `${d.tone.border} ${d.tone.text}`
-                : 'border-transparent text-foreground/40 hover:text-foreground/70'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
             )}
           >
             {d.label}
           </button>
         ))}
         <div className='ml-auto flex items-center gap-1'>
-          <span className='inline-block size-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.45)]' />
-          <span className='pr-1 font-mono text-[10px] tracking-wider text-foreground/40 uppercase'>
+          <span className='inline-block size-1.5 rounded-full bg-(--welcome-success)' />
+          <span className='pr-1 font-mono text-[11px] tracking-wider text-muted-foreground uppercase'>
             200 ok
           </span>
           <CopyButton text={curl} label={`复制 ${demo.label} curl`} />
         </div>
       </div>
 
-      <div className='flex items-center gap-2.5 border-b border-border/40 px-5 py-3 dark:border-white/[0.04]'>
+      <div className='flex items-center gap-2.5 border-b px-5 py-3'>
         <span
           className={cn(
             'rounded-md px-1.5 py-0.5 font-mono text-[10px] font-semibold tracking-wider',
@@ -180,51 +170,45 @@ export function ApiDemo({ baseUrl }: { baseUrl: string }) {
         >
           POST
         </span>
-        <code className='truncate font-mono text-[12.5px] text-foreground/75'>
+        <code className='truncate font-mono text-[12.5px] text-secondary-foreground'>
           {demo.path}
         </code>
       </div>
 
       <div className='font-mono text-[12.5px] leading-[1.6]'>
         <div className='min-h-[200px] px-5 py-4'>
-          <span className='text-[10px] font-semibold tracking-[0.18em] text-foreground/30 uppercase'>
+          <span className='text-[11px] font-medium tracking-[0.04em] text-muted-foreground uppercase'>
             Request
           </span>
           <div className='mt-2'>
             <div>
-              <span className='font-medium text-emerald-600 dark:text-emerald-400'>
-                curl
-              </span>{' '}
-              <span className='text-blue-600 dark:text-blue-400'>-X POST</span>{' '}
-              <span className='text-amber-700 dark:text-amber-300'>
+              <span className='font-medium text-(--welcome-success)'>curl</span>{' '}
+              <span className='text-primary-ink'>-X POST</span>{' '}
+              <span className='text-secondary-foreground'>
                 "{baseUrl}
                 {demo.path}"
               </span>{' '}
-              <span className='text-foreground/55'>\</span>
+              <span className='text-muted-foreground'>\</span>
             </div>
             <div className='ps-[2ch]'>
-              <span className='text-blue-600 dark:text-blue-400'>-H</span>{' '}
-              <span className='text-amber-700 dark:text-amber-300'>
-                "{demo.auth}"
-              </span>{' '}
-              <span className='text-foreground/55'>\</span>
+              <span className='text-primary-ink'>-H</span>{' '}
+              <span className='text-secondary-foreground'>"{demo.auth}"</span>{' '}
+              <span className='text-muted-foreground'>\</span>
             </div>
             <div className='ps-[2ch]'>
-              <span className='text-blue-600 dark:text-blue-400'>-d</span>{' '}
-              <span className='text-amber-700 dark:text-amber-300'>'{'{'}</span>
+              <span className='text-primary-ink'>-d</span>{' '}
+              <span className='text-secondary-foreground'>'{'{'}</span>
             </div>
             {demo.body.map((line) => (
               <div key={line} className='ps-[4ch]'>
                 <Json line={line} />
               </div>
             ))}
-            <div className='ps-[2ch] text-amber-700 dark:text-amber-300'>
-              {'}'}'
-            </div>
+            <div className='ps-[2ch] text-secondary-foreground'>{'}'}'</div>
           </div>
         </div>
-        <div className='min-h-[150px] border-t border-border/40 bg-muted/20 px-5 py-4 dark:border-white/[0.05] dark:bg-white/[0.015]'>
-          <span className='text-[10px] font-semibold tracking-[0.18em] text-foreground/30 uppercase'>
+        <div className='min-h-[150px] border-t bg-field px-5 py-4'>
+          <span className='text-[11px] font-medium tracking-[0.04em] text-muted-foreground uppercase'>
             Response
           </span>
           <div className='mt-2'>
@@ -235,11 +219,11 @@ export function ApiDemo({ baseUrl }: { baseUrl: string }) {
         </div>
       </div>
 
-      <div className='flex items-center justify-between border-t border-border/40 bg-muted/30 px-5 py-2.5 dark:border-white/[0.05] dark:bg-white/[0.02]'>
-        <span className='text-[10px] tracking-wider text-foreground/40 uppercase'>
+      <div className='flex items-center justify-between border-t bg-secondary px-5 py-2.5'>
+        <span className='text-[11px] tracking-wider text-muted-foreground uppercase'>
           sk-vm-xxxx 为占位符
         </span>
-        <span className='font-mono text-[10px] tracking-wider text-foreground/30 uppercase'>
+        <span className='font-mono text-[11px] tracking-wider text-muted-foreground uppercase'>
           stream · sse
         </span>
       </div>

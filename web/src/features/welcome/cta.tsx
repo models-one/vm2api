@@ -8,21 +8,14 @@ import { docsHref } from './steps'
 export function WelcomeCta({ signedIn }: { signedIn: boolean }) {
   return (
     <section className='relative z-10 overflow-hidden px-6 py-24 md:py-32'>
-      <div
-        aria-hidden
-        className='pointer-events-none absolute inset-0 -z-10 opacity-20 dark:opacity-[0.08]'
-        style={{
-          background: [
-            'radial-gradient(ellipse 50% 50% at 30% 50%, oklch(0.7 0.15 250 / 70%) 0%, transparent 70%)',
-            'radial-gradient(ellipse 40% 40% at 70% 40%, oklch(0.65 0.12 200 / 50%) 0%, transparent 70%)',
-          ].join(', '),
-        }}
-      />
-      <Reveal animation='scale-in' className='mx-auto max-w-2xl text-center'>
-        <h2 className='text-2xl leading-tight font-bold tracking-tight md:text-4xl'>
+      <Reveal
+        animation='scale-in'
+        className='mx-auto max-w-4xl rounded-lg border bg-card px-6 py-12 text-center edge-highlight md:p-12'
+      >
+        <h2 className='text-[1.75rem] leading-[1.2] font-semibold tracking-[-0.022em] md:text-[2.5rem] md:leading-[1.15]'>
           {signedIn ? '配置完成后' : '准备好了吗'}
           <br />
-          <span className='bg-gradient-to-r from-blue-400 via-violet-400 to-purple-500 bg-clip-text text-transparent'>
+          <span className='text-muted-foreground'>
             {signedIn ? '去控制台看第一条请求' : '登录开始首配'}
           </span>
         </h2>
@@ -31,7 +24,7 @@ export function WelcomeCta({ signedIn }: { signedIn: boolean }) {
         </p>
         <div className='mt-8 flex items-center justify-center gap-3'>
           {signedIn ? (
-            <Button asChild className='group rounded-lg'>
+            <Button asChild className='group'>
               <Link to='/overview'>
                 进入控制台
                 <ArrowRight
@@ -41,7 +34,7 @@ export function WelcomeCta({ signedIn }: { signedIn: boolean }) {
               </Link>
             </Button>
           ) : (
-            <Button asChild className='group rounded-lg'>
+            <Button asChild className='group'>
               <Link to='/login'>
                 登录控制台
                 <ArrowRight
@@ -51,11 +44,7 @@ export function WelcomeCta({ signedIn }: { signedIn: boolean }) {
               </Link>
             </Button>
           )}
-          <Button
-            asChild
-            variant='outline'
-            className='rounded-lg border-border/50 hover:border-border hover:bg-muted/50'
-          >
+          <Button asChild variant='outline'>
             <a
               href={docsHref('guide/install')}
               target='_blank'

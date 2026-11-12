@@ -339,7 +339,7 @@ function TierBadge({ vm }: { vm: Vm }) {
   return (
     <span
       className={cn(
-        'shrink-0 rounded px-1.5 py-0.5 text-[10px] leading-none font-bold tracking-[0.03em] uppercase',
+        'shrink-0 rounded px-1.5 py-0.5 text-[10px] leading-none font-semibold tracking-[0.03em] uppercase',
         skin.badge
       )}
     >

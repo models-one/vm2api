@@ -53,7 +53,7 @@ export function FilterSection({
                 {activeCount > 0 ? (
                   <Badge
                     variant='secondary'
-                    className='bg-primary/10 text-primary'
+                    className='bg-primary/10 text-primary-ink'
                   >
                     {activeCount}
                   </Badge>

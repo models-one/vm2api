@@ -185,7 +185,7 @@ export function TenantUsage({ tz }: { tz: string }) {
                 className={cn(
                   'cursor-pointer rounded px-2 py-1 text-xs font-medium',
                   history === item.id
-                    ? 'bg-primary/10 text-primary'
+                    ? 'bg-primary/10 text-primary-ink'
                     : 'text-muted-foreground hover:text-foreground'
                 )}
               >

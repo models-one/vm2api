@@ -120,7 +120,7 @@ export function ActiveSessionsList({
     <div className='rounded-lg border bg-card'>
       <div className='flex items-center justify-between border-b px-4 py-3'>
         <div className='flex items-center gap-2'>
-          <Activity className='h-4 w-4 text-primary' />
+          <Activity className='h-4 w-4 text-primary-ink' />
           <h3 className='text-sm font-semibold'>活跃 Session</h3>
           <span className='text-xs text-muted-foreground'>
             {data?.total ?? 0} 个 Session，{data?.minutes ?? 5} 分钟内

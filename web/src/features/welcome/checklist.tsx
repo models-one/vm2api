@@ -72,24 +72,16 @@ export function WelcomeChecklist({
       id='welcome-setup'
       className='relative z-10 scroll-mt-20 px-6 pb-8'
     >
-      <div className='welcome-fade-up mx-auto max-w-6xl overflow-hidden rounded-2xl border bg-card shadow-xs'>
+      <div className='welcome-fade-up mx-auto max-w-6xl overflow-hidden rounded-xl border bg-card edge-highlight'>
         <div className='relative p-4 sm:p-6'>
-          <div
-            aria-hidden
-            className='pointer-events-none absolute inset-0 opacity-60 dark:opacity-30'
-            style={{
-              background:
-                'radial-gradient(ellipse 50% 60% at 0% 0%, oklch(0.72 0.18 250 / 14%) 0%, transparent 70%), radial-gradient(ellipse 40% 50% at 100% 0%, oklch(0.70 0.12 280 / 12%) 0%, transparent 70%)',
-            }}
-          />
           <div className='relative grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]'>
             <div className='flex min-w-0 flex-col gap-5'>
               <div className='flex max-w-2xl flex-col gap-1'>
-                <div className='flex items-center gap-2 text-xs font-medium tracking-wider text-muted-foreground uppercase'>
+                <div className='flex items-center gap-2 text-[13px] font-medium tracking-[0.03em] text-muted-foreground'>
                   <ListChecks aria-hidden className='size-3.5' />
                   首配清单
                 </div>
-                <h2 className='text-xl font-semibold tracking-tight sm:text-2xl'>
+                <h2 className='text-xl font-semibold tracking-[-0.02em] sm:text-[1.75rem] sm:leading-[1.2]'>
                   几分钟把这台网关配到能用
                 </h2>
                 <p className='text-sm leading-relaxed text-muted-foreground'>
@@ -97,7 +89,7 @@ export function WelcomeChecklist({
                 </p>
               </div>
 
-              <ol className='rounded-2xl border bg-background/45 p-2 backdrop-blur'>
+              <ol className='rounded-lg border bg-field p-2'>
                 {known.map((step, i) => {
                   const meta = STEP_META[step.id]
                   const Icon = STEP_ICONS[step.id]
@@ -116,7 +108,7 @@ export function WelcomeChecklist({
                       ) : null}
                       <span
                         className={cn(
-                          'relative z-10 flex size-8 shrink-0 items-center justify-center rounded-lg border bg-background shadow-xs',
+                          'relative z-10 flex size-8 shrink-0 items-center justify-center rounded-lg border bg-card',
                           step.done &&
                             'border-[color-mix(in_oklch,var(--welcome-success)_30%,transparent)] bg-[color-mix(in_oklch,var(--welcome-success)_10%,var(--background))]'
                         )}
@@ -134,7 +126,7 @@ export function WelcomeChecklist({
                           {step.done ? '已完成' : '未完成'}
                         </span>
                       </span>
-                      <div className='flex min-w-0 flex-1 flex-wrap items-center justify-between gap-3 rounded-xl border bg-background/70 px-3 py-2.5 shadow-xs'>
+                      <div className='flex min-w-0 flex-1 flex-wrap items-center justify-between gap-3 rounded-lg border bg-card px-3 py-2.5'>
                         <div className='flex min-w-0 items-start gap-2.5'>
                           <span className='mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-muted'>
                             <Icon aria-hidden className='size-3.5' />
@@ -193,7 +185,7 @@ export function WelcomeChecklist({
               </ol>
             </div>
 
-            <aside className='flex flex-col gap-4 rounded-2xl border bg-background/60 p-4 backdrop-blur sm:p-5'>
+            <aside className='flex flex-col gap-4 rounded-lg border bg-field p-4 sm:p-5'>
               <div className='flex items-baseline justify-between'>
                 <span className='text-xs font-medium tracking-wider text-muted-foreground uppercase'>
                   进度
@@ -211,7 +203,7 @@ export function WelcomeChecklist({
                 className='h-2 overflow-hidden rounded-full bg-muted'
               >
                 <div
-                  className='h-full rounded-full bg-gradient-to-r from-blue-400 via-violet-400 to-purple-500 transition-[width] duration-500'
+                  className='h-full rounded-full bg-primary transition-[width] duration-500'
                   style={{ width: `${percent}%` }}
                 />
               </div>

@@ -79,7 +79,7 @@ export function QuotaSummary({
       onClick={onClick}
       className='h-auto min-h-24 min-w-0 justify-start gap-3 px-4 py-3 text-left'
     >
-      <Icon className='size-4 shrink-0 text-primary' aria-hidden />
+      <Icon className='size-4 shrink-0 text-primary-ink' aria-hidden />
       <span className='min-w-0'>
         <span className='flex items-center gap-2 text-xs text-muted-foreground'>
           <span className='truncate'>{title}</span>
@@ -164,7 +164,7 @@ export function PlatformAccountList({
             <Link
               to='/vm/$id'
               params={{ id: vm.id }}
-              className='inline-flex min-h-11 items-center gap-1 text-xs text-primary hover:underline'
+              className='inline-flex min-h-11 items-center gap-1 text-xs text-primary-ink hover:underline'
             >
               查看 VM 调度
             </Link>

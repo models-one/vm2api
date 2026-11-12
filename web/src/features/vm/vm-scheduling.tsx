@@ -284,7 +284,7 @@ function Tile({
       <span
         className={cn(
           'shrink-0 whitespace-nowrap tabular-nums',
-          own && 'font-medium text-primary'
+          own && 'font-medium text-primary-ink'
         )}
       >
         {value}
@@ -329,7 +329,7 @@ export function VmSchedulingBlock({
           <div
             className={cn(
               'text-[11px]',
-              custom ? 'text-primary' : 'text-muted-foreground'
+              custom ? 'text-primary-ink' : 'text-muted-foreground'
             )}
           >
             {custom ? `本槽覆盖 ${custom} 项` : '全部跟随全局'}

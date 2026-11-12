@@ -135,7 +135,7 @@ export function ProtocolPane({
                 <Check
                   className={cn(
                     'mt-0.5 size-3.5 shrink-0',
-                    strict ? 'text-primary' : 'text-muted-foreground'
+                    strict ? 'text-primary-ink' : 'text-muted-foreground'
                   )}
                   aria-hidden
                 />
