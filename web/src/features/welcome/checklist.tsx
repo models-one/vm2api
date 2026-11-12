@@ -72,7 +72,7 @@ export function WelcomeChecklist({
       id='welcome-setup'
       className='relative z-10 scroll-mt-20 px-6 pb-8'
     >
-      <div className='welcome-fade-up mx-auto max-w-6xl overflow-hidden rounded-xl border bg-card edge-highlight'>
+      <div className='welcome-fade-up mx-auto max-w-6xl overflow-hidden rounded-xl border bg-card'>
         <div className='relative p-4 sm:p-6'>
           <div className='relative grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]'>
             <div className='flex min-w-0 flex-col gap-5'>
@@ -81,7 +81,7 @@ export function WelcomeChecklist({
                   <ListChecks aria-hidden className='size-3.5' />
                   首配清单
                 </div>
-                <h2 className='text-xl font-semibold tracking-[-0.02em] sm:text-[1.75rem] sm:leading-[1.2]'>
+                <h2 className='font-display text-2xl tracking-[-0.3px] sm:text-[2rem] sm:leading-[1.15]'>
                   几分钟把这台网关配到能用
                 </h2>
                 <p className='text-sm leading-relaxed text-muted-foreground'>

@@ -44,7 +44,7 @@ export function WelcomeUsageMode({
       className='relative z-10 px-6 pb-4'
       aria-labelledby='welcome-usage'
     >
-      <div className='mx-auto flex max-w-6xl flex-col gap-4 rounded-xl border bg-card p-4 edge-highlight sm:p-6'>
+      <div className='mx-auto flex max-w-6xl flex-col gap-4 rounded-xl border bg-card p-4 sm:p-6'>
         <div className='flex max-w-2xl flex-col gap-1'>
           <h2
             id='welcome-usage'

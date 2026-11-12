@@ -12,7 +12,7 @@ type Demo = {
   tone: { text: string; border: string; badge: string }
 }
 
-// Linear：截图里只留一个彩色强调。各端点标签共用薰衣草下划线，靠文字区分。
+// Claude：代码窗只留一个彩色强调。各端点标签共用珊瑚下划线，靠文字区分。
 const NEUTRAL_TONE = {
   text: 'text-foreground',
   border: 'border-primary',
@@ -80,7 +80,7 @@ const DEMOS: Demo[] = [
 
 const STRING_RE = /"[^"]*"/g
 
-/** Colors JSON-ish lines: keys lavender, string values ink-muted, punctuation muted. */
+/** Colors JSON-ish lines: keys coral, string values ink-muted, punctuation muted. */
 function Json({ line }: { line: string }) {
   const parts: React.ReactNode[] = []
   let cursor = 0
@@ -129,7 +129,7 @@ export function ApiDemo({ baseUrl }: { baseUrl: string }) {
   ].join('\n')
 
   return (
-    <div className='mx-auto w-full max-w-2xl overflow-hidden rounded-xl border bg-card edge-highlight'>
+    <div className='dark dark-surface mx-auto w-full max-w-2xl overflow-hidden rounded-xl border bg-card'>
       <div
         role='tablist'
         aria-label='接口示例'

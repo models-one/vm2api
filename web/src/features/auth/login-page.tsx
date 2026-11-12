@@ -87,16 +87,14 @@ export function LoginPage() {
           <span className='grid size-7 place-items-center rounded-md bg-primary text-primary-foreground'>
             <Logo aria-hidden className='size-4' />
           </span>
-          <span className='text-sm font-semibold tracking-[-0.01em]'>
-            vm2api
-          </span>
+          <span className='font-display text-[1.0625rem]'>vm2api</span>
         </Link>
         <ThemeSwitch />
       </header>
 
       <main className='relative flex flex-1 items-center justify-center px-6 pb-20'>
-        <div className='welcome-fade-up w-full max-w-[24rem] rounded-lg border bg-card p-8 edge-highlight'>
-          <h1 className='text-[1.75rem] leading-[1.2] font-semibold tracking-[-0.6px]'>
+        <div className='welcome-fade-up w-full max-w-[24rem] rounded-lg border bg-card p-8'>
+          <h1 className='font-display text-[2rem] leading-[1.15] tracking-[-0.5px]'>
             登录控制台
           </h1>
           <p className='mt-2 text-sm text-muted-foreground'>

@@ -9,7 +9,7 @@ import {
   unitPricePerMillion,
 } from './log-display'
 
-const LABEL = 'text-[11px] text-primary-foreground/70'
+const LABEL = 'text-[11px] text-muted-foreground'
 const PURPLE =
   'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/30 dark:text-purple-300 dark:border-purple-800'
 
@@ -38,7 +38,7 @@ function TtlChip({ ttl }: { ttl: '5m' | '1h' }) {
   return (
     <Badge
       variant='outline'
-      className='ml-1 border-primary-foreground/30 px-1 text-[10px] leading-tight text-primary-foreground/80'
+      className='ml-1 px-1 text-[10px] leading-tight text-muted-foreground'
     >
       {ttl}
     </Badge>
@@ -130,7 +130,7 @@ export function CostTooltipContent({ row }: { row: UsageLogRow }) {
             />
           ) : null}
           {multiplier != null && baseTotal != null ? (
-            <div className='flex items-center justify-between gap-3 border-t border-primary-foreground/20 pt-2'>
+            <div className='flex items-center justify-between gap-3 border-t pt-2'>
               <span className={LABEL}>基础合计</span>
               <span className='font-mono tabular-nums'>
                 {formatCurrency(baseTotal, 6)}
@@ -138,9 +138,9 @@ export function CostTooltipContent({ row }: { row: UsageLogRow }) {
             </div>
           ) : null}
           {multiplier != null ? (
-            <div className='space-y-2 rounded-md border border-primary-foreground/20 bg-primary-foreground/10 p-2'>
+            <div className='space-y-2 rounded-md border bg-muted p-2'>
               <div className='flex items-center justify-between text-[11px]'>
-                <span className='text-primary-foreground/70'>分组倍率</span>
+                <span className='text-muted-foreground'>分组倍率</span>
                 <span className='font-mono'>x{multiplier.toFixed(2)}</span>
               </div>
             </div>
@@ -157,11 +157,11 @@ export function CostTooltipContent({ row }: { row: UsageLogRow }) {
           ) : null}
         </div>
       ) : null}
-      <div className='flex items-end justify-between gap-3 border-t border-primary-foreground/20 pt-2'>
+      <div className='flex items-end justify-between gap-3 border-t pt-2'>
         <span className={LABEL}>总费用</span>
         <div className='text-right font-mono tabular-nums'>
           {multiplier != null && baseTotal != null ? (
-            <div className='text-[11px] text-primary-foreground/60 line-through'>
+            <div className='text-[11px] text-muted-foreground line-through'>
               {formatCurrency(baseTotal, 6)}
             </div>
           ) : null}

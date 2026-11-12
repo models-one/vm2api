@@ -28,7 +28,7 @@ export function AppTitle({ version }: { version?: string }) {
   const { setOpenMobile } = useSidebar()
   return (
     <SidebarMenu>
-      <SidebarMenuItem className='rounded-lg border bg-card p-2.5 edge-highlight group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:shadow-none'>
+      <SidebarMenuItem className='rounded-lg border bg-card p-2.5 group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:shadow-none'>
         <div className='flex items-center gap-2'>
           <Link
             to='/overview'
@@ -43,9 +43,7 @@ export function AppTitle({ version }: { version?: string }) {
               />
             </span>
             <span className='grid min-w-0 leading-tight group-data-[collapsible=icon]:hidden'>
-              <span className='truncate text-base font-semibold tracking-[-0.02em]'>
-                vm2api
-              </span>
+              <span className='truncate font-display text-lg'>vm2api</span>
               <span className='truncate text-xs text-muted-foreground'>
                 管理台
               </span>

@@ -21,7 +21,7 @@ export function PageHeader({
       <div className='mb-4 flex flex-wrap items-end justify-between gap-2'>
         <div className='max-w-full min-w-0'>
           <h2
-            className='truncate text-[1.75rem] leading-[1.2] font-semibold tracking-[-0.6px]'
+            className='truncate font-display text-[1.75rem] leading-[1.2] tracking-[-0.3px]'
             title={title}
           >
             {title}

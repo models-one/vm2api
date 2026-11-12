@@ -53,16 +53,16 @@ export function WelcomeCapabilities() {
           <p className='mb-3 text-[13px] font-medium tracking-[0.03em] text-muted-foreground'>
             核心能力
           </p>
-          <h2 className='text-[1.75rem] leading-[1.2] font-semibold tracking-[-0.022em] md:text-[2.5rem] md:leading-[1.15]'>
+          <h2 className='font-display text-[2rem] leading-[1.15] tracking-[-0.5px] md:text-[3rem] md:leading-[1.1] md:tracking-[-1px]'>
             官方客户端在槽里跑，
             <br />
             网关只负责调度与隔离
           </h2>
         </Reveal>
-        <div className='grid gap-px overflow-hidden rounded-xl border border-border bg-border md:grid-cols-3'>
+        <div className='grid gap-4 md:grid-cols-3'>
           <Reveal
             animation='scale-in'
-            className='group bg-card p-7 transition-colors duration-200 hover:bg-secondary md:col-span-2 md:p-8'
+            className='rounded-lg bg-card p-7 md:col-span-2 md:p-8'
           >
             <CellHead num='01' title='协议兼容' />
             <p className='text-sm leading-relaxed text-muted-foreground'>
@@ -72,7 +72,7 @@ export function WelcomeCapabilities() {
               {PROTOCOLS.map((p) => (
                 <li
                   key={p.path}
-                  className='flex flex-col gap-0.5 rounded-md border bg-field px-3 py-2 transition-colors duration-200 hover:bg-accent'
+                  className='flex flex-col gap-0.5 rounded-md border bg-field px-3 py-2'
                 >
                   <code className='truncate font-mono text-[11.5px]'>
                     {p.path}
@@ -88,7 +88,7 @@ export function WelcomeCapabilities() {
           <Reveal
             animation='scale-in'
             delay={100}
-            className='group bg-card p-7 transition-colors duration-200 hover:bg-secondary md:p-8'
+            className='rounded-lg bg-card p-7 md:p-8'
           >
             <CellHead num='02' title='槽位隔离' />
             <p className='text-sm leading-relaxed text-muted-foreground'>
@@ -96,7 +96,7 @@ export function WelcomeCapabilities() {
             </p>
             <div className='mt-5 flex items-center justify-center'>
               <div className='relative'>
-                <div className='flex size-16 items-center justify-center rounded-xl border bg-field edge-highlight'>
+                <div className='flex size-16 items-center justify-center rounded-xl border bg-field'>
                   <Boxes
                     aria-hidden
                     className='size-7 text-secondary-foreground'
@@ -113,7 +113,7 @@ export function WelcomeCapabilities() {
           <Reveal
             animation='scale-in'
             delay={200}
-            className='group bg-card p-7 transition-colors duration-200 hover:bg-secondary md:p-8'
+            className='rounded-lg bg-card p-7 md:p-8'
           >
             <CellHead num='03' title='进槽前把关' />
             <p className='text-sm leading-relaxed text-muted-foreground'>
@@ -141,7 +141,7 @@ export function WelcomeCapabilities() {
           <Reveal
             animation='scale-in'
             delay={300}
-            className='group bg-card p-7 transition-colors duration-200 hover:bg-secondary md:col-span-2 md:p-8'
+            className='rounded-lg bg-card p-7 md:col-span-2 md:p-8'
           >
             <CellHead num='04' title='额度感知调度' />
             <p className='text-sm leading-relaxed text-muted-foreground'>
@@ -204,10 +204,10 @@ export function WelcomeCapabilities() {
 function CellHead({ num, title }: { num: string; title: string }) {
   return (
     <div className='mb-3 flex items-center gap-3'>
-      <span className='flex size-7 items-center justify-center rounded-md border border-border/40 bg-muted text-[10px] font-semibold text-muted-foreground tabular-nums'>
+      <span className='flex size-7 items-center justify-center rounded-md bg-field text-[10px] font-semibold text-muted-foreground tabular-nums'>
         {num}
       </span>
-      <h3 className='text-sm font-semibold'>{title}</h3>
+      <h3 className='text-lg font-medium'>{title}</h3>
     </div>
   )
 }

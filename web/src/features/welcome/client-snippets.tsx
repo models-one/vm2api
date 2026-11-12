@@ -71,7 +71,7 @@ export function WelcomeClientSnippets({ baseUrl }: { baseUrl: string }) {
           <p className='mb-3 text-[13px] font-medium tracking-[0.03em] text-muted-foreground'>
             客户端接入
           </p>
-          <h2 className='text-[1.75rem] leading-[1.2] font-semibold tracking-[-0.022em] md:text-[2.5rem] md:leading-[1.15]'>
+          <h2 className='font-display text-[2rem] leading-[1.15] tracking-[-0.5px] md:text-[3rem] md:leading-[1.1] md:tracking-[-1px]'>
             改一个地址，
             <br />
             现有工具直接用
@@ -111,7 +111,7 @@ export function WelcomeClientSnippets({ baseUrl }: { baseUrl: string }) {
           delay={120}
           className='min-w-0 lg:col-span-7'
         >
-          <div className='overflow-hidden rounded-xl border bg-card edge-highlight'>
+          <div className='dark dark-surface overflow-hidden rounded-lg border bg-card'>
             <div
               role='tablist'
               aria-label='客户端配置'
@@ -148,7 +148,7 @@ export function WelcomeClientSnippets({ baseUrl }: { baseUrl: string }) {
                 {tab.hint}
               </span>
             </div>
-            <pre className='min-h-[220px] overflow-x-auto px-5 py-4 font-mono text-[12.5px] leading-[1.6] text-secondary-foreground'>
+            <pre className='min-h-[220px] overflow-x-auto bg-field px-5 py-4 font-mono text-[12.5px] leading-[1.6] text-secondary-foreground'>
               {tab.code}
             </pre>
           </div>

@@ -33,7 +33,7 @@ export function WelcomeHero({
           </div>
 
           <h1
-            className='welcome-fade-up text-[clamp(2.25rem,5vw,3.5rem)] leading-[1.1] font-semibold tracking-[-0.028em]'
+            className='welcome-fade-up font-display text-[clamp(2.5rem,5.5vw,4rem)] leading-[1.05] tracking-[-0.02em]'
             style={{ animationDelay: '60ms' }}
           >
             把订阅号池

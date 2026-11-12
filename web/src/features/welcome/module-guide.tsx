@@ -181,7 +181,7 @@ export function WelcomeModuleGuide({ views }: { views?: string[] | null }) {
       className='relative z-10 px-6 pt-2 pb-8'
       aria-labelledby='welcome-modules'
     >
-      <div className='mx-auto flex max-w-6xl flex-col gap-6 rounded-xl border bg-card p-4 edge-highlight sm:p-6'>
+      <div className='mx-auto flex max-w-6xl flex-col gap-6 rounded-xl border bg-card p-4 sm:p-6'>
         <h2
           id='welcome-modules'
           className='text-xl font-semibold tracking-[-0.02em] sm:text-[1.75rem] sm:leading-[1.2]'

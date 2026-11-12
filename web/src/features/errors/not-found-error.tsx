@@ -7,7 +7,9 @@ export function NotFoundError() {
   return (
     <div className='h-svh'>
       <div className='m-auto flex h-full w-full flex-col items-center justify-center gap-2'>
-        <h1 className='text-[7rem] leading-tight font-semibold'>404</h1>
+        <h1 className='font-display text-[7rem] leading-tight tracking-[-0.03em] lining-nums'>
+          404
+        </h1>
         <span className='font-medium'>Oops! Page Not Found!</span>
         <p className='text-center text-muted-foreground'>
           It seems like the page you're looking for <br />

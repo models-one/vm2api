@@ -11,15 +11,15 @@ import {
 } from '@/components/ui/dropdown-menu'
 
 export function ThemeSwitch() {
-  const { theme, setTheme } = useTheme()
+  const { theme, resolvedTheme, setTheme } = useTheme()
 
-  /* Update theme-color meta tag
-   * when theme is updated */
+  /* Update theme-color meta tag when theme is updated: Claude surface-dark
+   * / cream canvas, so the browser chrome matches the sidebar frame. */
   useEffect(() => {
-    const themeColor = theme === 'dark' ? '#020817' : '#fff'
+    const themeColor = resolvedTheme === 'dark' ? '#181715' : '#faf9f5'
     const metaThemeColor = document.querySelector("meta[name='theme-color']")
     if (metaThemeColor) metaThemeColor.setAttribute('content', themeColor)
-  }, [theme])
+  }, [resolvedTheme])
 
   return (
     <DropdownMenu modal={false}>

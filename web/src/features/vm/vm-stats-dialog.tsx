@@ -120,12 +120,7 @@ export function MetricCard({
 }) {
   const tone = ACCENT[accent]
   return (
-    <div
-      className={cn(
-        'min-w-0 rounded-lg border bg-card p-3.5 edge-highlight',
-        tone.card
-      )}
-    >
+    <div className={cn('min-w-0 rounded-lg border bg-card p-3.5', tone.card)}>
       <div className='mb-1.5 flex items-center justify-between gap-2'>
         <span className='truncate text-xs font-medium text-muted-foreground'>
           {label}
@@ -720,7 +715,7 @@ function StatsBody({ vm, accounts }: { vm: Vm; accounts?: UsageAccountRow[] }) {
 
   return (
     <div className='space-y-3 pb-1'>
-      <div className='flex items-center justify-between gap-3 rounded-lg border bg-card p-3 edge-highlight'>
+      <div className='flex items-center justify-between gap-3 rounded-lg border bg-card p-3'>
         <div className='flex min-w-0 items-center gap-3'>
           <span className='grid size-10 shrink-0 place-items-center rounded-lg border bg-accent text-foreground'>
             <BarChart3 className='size-5' />

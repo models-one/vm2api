@@ -56,7 +56,7 @@ export function StarHint() {
       onMouseLeave={() => setPaused(false)}
       onFocus={() => setPaused(true)}
       onBlur={() => setPaused(false)}
-      className='animate-settings-pane-in fixed inset-x-4 bottom-4 z-50 overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-lg edge-highlight sm:inset-x-auto sm:right-4 sm:w-[22rem]'
+      className='animate-settings-pane-in fixed inset-x-4 bottom-4 z-50 overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-lg sm:inset-x-auto sm:right-4 sm:w-[22rem]'
     >
       <div className='relative flex gap-3 p-4 pe-10'>
         <span className='grid size-10 shrink-0 place-items-center rounded-lg border bg-accent text-foreground'>

@@ -1,37 +1,39 @@
 :root {
   /*
-   * Linear 设计系统（DESIGN.md）。亮色端是派生的：Linear 只文档化了深色，
-   * 这里沿用它的反相表面（inverse-canvas #fff / inverse-surface-1 #f5f6f6）
-   * 和同一套薰衣草蓝。唯一的彩色强调是 primary，只给主按钮、焦点环、链接强调。
+   * Claude 设计系统（DESIGN.md）。亮色是主场：奶油色画布 canvas #faf9f5、
+   * 暖墨 ink #141413、发丝 #e6dfd8。侧栏落在 surface-soft #f5f0e8，内容面板
+   * 是 canvas，卡片抬到暖白一档。唯一的彩色强调是珊瑚橙，只给主按钮、焦点环、
+   * 链接强调，其它地方不刷珊瑚。
    */
   --radius: 0.75rem;
-  --background: #ffffff;
-  --foreground: #0f1011;
-  --card: #ffffff;
-  --card-foreground: #0f1011;
-  --popover: #ffffff;
-  --popover-foreground: #0f1011;
-  --primary: #5e6ad2;
+  --background: #faf9f5;
+  --foreground: #141413;
+  --card: #fffefb;
+  --card-foreground: #141413;
+  --popover: #fffefb;
+  --popover-foreground: #141413;
+  /* 规范的珊瑚 #cc785c 配白字只有 3.28:1。按钮底压暗到同色相的 #b35b3d
+     （4.69:1），悬停 / 按下沿规范继续压暗（primary-active #a9583e）。
+     原色 #cc785c 留给焦点环、图表、logo 这类非文字处。 */
+  --primary: #b35b3d;
   --primary-foreground: #ffffff;
-  --primary-hover: #828fff;
-  --primary-focus: #5e69d1;
-  /* 作为文字的 primary。白底上 #5e6ad2 本身 4.70:1，够用。 */
-  --primary-ink: #5e6ad2;
-  --secondary: #f5f6f6;
-  --secondary-foreground: #2b2d31;
-  --muted: #f5f6f6;
-  --muted-foreground: #62666d;
-  --accent: #eeeff1;
-  --accent-foreground: #0f1011;
-  --destructive: oklch(0.5 0.18 16);
-  --border: #e6e6e9;
-  --input: #d8d9dd;
-  --ring: #5e69d1;
-  /* 输入框底色：Linear text-input = surface-1。 */
-  --field: #ffffff;
-  /* 抬起面板顶边的发丝高光；亮色端不需要。 */
-  --edge-highlight: transparent;
-  --overlay: oklch(0 0 0 / 40%);
+  --primary-hover: #a9583e;
+  --primary-focus: #a24c2e;
+  /* 作为文字的珊瑚：canvas 上 5.05:1，暖白卡上 5.28:1。 */
+  --primary-ink: #a95234;
+  --secondary: #f5f0e8;
+  --secondary-foreground: #3d3d3a;
+  --muted: #f5f0e8;
+  --muted-foreground: #6c6a64;
+  --accent: #efe9de;
+  --accent-foreground: #141413;
+  --destructive: #c64545;
+  --border: #e6dfd8;
+  --input: #d6cdbf;
+  --ring: #c46a4b;
+  /* 输入框底色：Claude text-input 与卡片同为最亮一档。 */
+  --field: #fffefb;
+  --overlay: rgb(20 20 19 / 40%);
 
   /*
    * 语义色板。每族 5 档：1 surface · 2 muted · 3 fg · 4 solid · 5 ink。
@@ -82,7 +84,7 @@
   --status-caution: var(--caution-3);
   --status-warn: var(--warn-3);
   --status-bad: var(--pink-3);
-  --status-none: oklch(0.47 0.016 258);
+  --status-none: oklch(0.47 0.012 85);
   /* 标尺填充/图形用的实色版：比文字版更亮更艳，用在非文本处（3:1 即可）。 */
   --status-ok-solid: var(--ok-4);
   --status-caution-solid: var(--caution-4);
@@ -92,7 +94,7 @@
   --status-caution-bg: var(--caution-1);
   --status-warn-bg: var(--warn-1);
   --status-bad-bg: var(--pink-1);
-  --status-none-bg: oklch(0.932 0.007 258);
+  --status-none-bg: oklch(0.932 0.012 85);
 
   /* 账号等级轴：与状态轴正交。蓝 = Pro，紫 = Max。
      border 只做 1px 行首色条；fg 给数字与 badge 文字；实测最低 5.47:1。 */
@@ -116,20 +118,21 @@
   --tier-codex-fg: oklch(0.42 0.12 155);
   --tier-codex-solid: oklch(0.62 0.16 155);
   --tier-codex-solid-fg: oklch(0.16 0.03 155);
-  /* 调用形式标签（类型列）。Console 用 Anthropic 品牌的陶土橙实心块——它是
-     线上绝大多数槽的形式，也是要被一眼认出来的那一类；深色字压在橙底上 6:1。
+  /* 调用形式标签（类型列）。Console 是线上绝大多数槽的形式，要被一眼认出来；
+     它原先是陶土橙，现在陶土橙就是主色，满屏橙块会把珊瑚刷得到处都是。改用
+     Claude 的深色产品面 surface-dark 实心块（cream 字 17:1）。
      OAuth 复用 tier-pro 蓝；API 是白：浅色主题下白底需要描边才成立。 */
-  --lane-console-bg: oklch(0.68 0.13 41);
-  --lane-console-fg: oklch(0.2 0.03 41);
+  --lane-console-bg: #181715;
+  --lane-console-fg: #faf9f5;
   --lane-api-bg: oklch(1 0 0);
-  --lane-api-border: oklch(0.78 0.006 258);
-  --lane-api-fg: oklch(0.2 0.01 258);
+  --lane-api-border: oklch(0.78 0.012 85);
+  --lane-api-fg: oklch(0.2 0.005 85);
 
   /* 三级文字：用于「累计消耗」这类字段标签。比 muted-foreground 再退一档，
      但仍是正文尺寸，所以照样守 4.5:1（实测 4.95）。 */
-  --text-tertiary: #6b6f77;
-  /* 卡内分组线。发丝级——可见但不切割版面（实测 1.27，刻意低于常规 border）。 */
-  --hairline: #e6e6e9;
+  --text-tertiary: #6f6d66;
+  /* 卡内分组线。发丝级——可见但不切割版面（Claude hairline，实测 1.29）。 */
+  --hairline: #e6dfd8;
   /* 量表槽。用前景色低 alpha 叠加而非实色，这样它跟着等级底色走，
      在中性/Pro/Max 三种卡面上都保持同样的凹陷深度。 */
   --track: oklch(0 0 0 / 8.5%);
@@ -143,57 +146,59 @@
   --select-solid-fg: oklch(0.99 0.005 228);
 
   /* 浏览器自带表面 */
-  --selection: color-mix(in oklch, #5e6ad2 22%, transparent);
-  --scrollbar-thumb: color-mix(in oklch, #62666d 40%, transparent);
+  --selection: color-mix(in oklch, #cc785c 24%, transparent);
+  --scrollbar-thumb: color-mix(in oklch, #8e8b82 45%, transparent);
 
-  /* chart-1 是品牌薰衣草；原来的青绿退到 chart-2，和 252° 的 Pro 蓝拉开。 */
-  --chart-1: #5e6ad2;
-  --chart-2: oklch(0.6 0.13 157);
-  --chart-3: oklch(0.68 0.135 88);
-  --chart-4: oklch(0.62 0.155 38);
-  --chart-5: oklch(0.58 0.17 325);
+  /* chart-1 是品牌珊瑚，2 / 3 取 Claude 的 accent-teal 与 accent-amber，
+     4 / 5 补一个灰蓝、一个梅紫。原来 38° 的 chart-4 和珊瑚撞色，挪到 255°。 */
+  --chart-1: #cc785c;
+  --chart-2: oklch(0.58 0.09 182);
+  --chart-3: oklch(0.7 0.13 70);
+  --chart-4: oklch(0.55 0.09 255);
+  --chart-5: oklch(0.55 0.13 330);
 
-  --sidebar: #f5f6f6;
-  --sidebar-foreground: #2b2d31;
+  --sidebar: #f5f0e8;
+  --sidebar-foreground: #3d3d3a;
   --sidebar-primary: var(--primary);
   --sidebar-primary-foreground: var(--primary-foreground);
-  --sidebar-accent: #e9eaec;
-  --sidebar-accent-foreground: #0f1011;
+  --sidebar-accent: #ebe4d8;
+  --sidebar-accent-foreground: #141413;
   --sidebar-border: var(--border);
   --sidebar-ring: var(--ring);
 }
 
 .dark {
   /*
-   * Linear 表面阶梯：canvas #010102 → surface-1 #0f1011 → surface-2 #141516
-   * → surface-3 #18191a。侧栏落在 canvas，内容面板 surface-1，卡片 surface-2，
-   * 菜单 / 浮层 surface-3。层级靠阶梯 + 1px 发丝边，不靠阴影。
+   * Claude 的深色产品面（代码窗、模型卡、页脚）派生出整套深色主题：
+   * surface-dark #181715 → surface-dark-soft #1f1e1b → surface-dark-elevated
+   * #252320。侧栏落在 surface-dark，内容面板 dark-soft，卡片 elevated，
+   * 菜单 / 浮层再抬一档。文字是带奶油底色的 on-dark #faf9f5，不是纯白。
    */
-  --background: #0f1011;
-  --foreground: #f7f8f8;
-  --card: #141516;
-  --card-foreground: #f7f8f8;
-  --popover: #18191a;
-  --popover-foreground: #f7f8f8;
-  --primary: #5e6ad2;
+  --background: #1f1e1b;
+  --foreground: #faf9f5;
+  --card: #252320;
+  --card-foreground: #faf9f5;
+  --popover: #2a2824;
+  --popover-foreground: #faf9f5;
+  /* 按钮底与亮色端同一个压暗珊瑚，白字 4.69:1。 */
+  --primary: #b35b3d;
   --primary-foreground: #ffffff;
-  --primary-hover: #828fff;
-  --primary-focus: #5e69d1;
-  /* 深色上 #5e6ad2 作文字只有 3.89:1，链接强调改用 Linear 的浅薰衣草（6.37:1）。 */
-  --primary-ink: #828fff;
-  --secondary: #18191a;
-  --secondary-foreground: #d0d6e0;
-  --muted: #18191a;
-  --muted-foreground: #8a8f98;
-  --accent: #23252a;
-  --accent-foreground: #f7f8f8;
-  --destructive: oklch(0.72 0.15 16);
-  --border: #23252a;
-  --input: #34343a;
-  --ring: #5e69d1;
-  --field: #0f1011;
-  --edge-highlight: oklch(1 0 0 / 4%);
-  --overlay: oklch(0 0 0 / 72%);
+  --primary-hover: #a9583e;
+  --primary-focus: #a24c2e;
+  /* 深色上珊瑚作文字要提亮：#e18b6e 在卡片上 6.06:1。 */
+  --primary-ink: #e18b6e;
+  --secondary: #2c2a26;
+  --secondary-foreground: #d6d2c8;
+  --muted: #2c2a26;
+  --muted-foreground: #a09d96;
+  --accent: #33302b;
+  --accent-foreground: #faf9f5;
+  --destructive: #e5736f;
+  --border: #3a3733;
+  --input: #4a4741;
+  --ring: #d97757;
+  --field: #1f1e1b;
+  --overlay: rgb(10 10 9 / 72%);
 
   --ok-1: oklch(0.28 0.048 157);
   --ok-2: oklch(0.52 0.08 157);
@@ -234,7 +239,7 @@
   --status-caution: var(--caution-3);
   --status-warn: var(--warn-3);
   --status-bad: var(--pink-3);
-  --status-none: oklch(0.775 0.015 258);
+  --status-none: oklch(0.775 0.012 85);
   /* 标尺填充/图形用的实色版。暗色端提升最大：ok +40%、bad +59% 饱和。 */
   --status-ok-solid: var(--ok-4);
   --status-caution-solid: var(--caution-4);
@@ -244,7 +249,7 @@
   --status-caution-bg: var(--caution-1);
   --status-warn-bg: var(--warn-1);
   --status-bad-bg: var(--pink-1);
-  --status-none-bg: oklch(0.325 0.01 258);
+  --status-none-bg: oklch(0.325 0.01 85);
 
   --tier-pro-surface-hover: oklch(0.238 0.032 252);
   --tier-pro-border: oklch(0.475 0.105 252);
@@ -263,15 +268,16 @@
   --tier-codex-fg: oklch(0.82 0.11 155);
   --tier-codex-solid: oklch(0.72 0.16 155);
   --tier-codex-solid-fg: oklch(0.14 0.03 155);
-  --lane-console-bg: oklch(0.68 0.13 41);
-  --lane-console-fg: oklch(0.16 0.03 41);
+  /* 深色端反过来：Console 是 cream-strong 实心块。 */
+  --lane-console-bg: #e8e0d2;
+  --lane-console-fg: #141413;
   --lane-api-bg: oklch(1 0 0 / 12%);
   --lane-api-border: oklch(1 0 0 / 65%);
   --lane-api-fg: oklch(0.98 0 0);
 
-  /* 介于 ink-subtle 与 ink-tertiary 之间：#62666d 只有 3.3:1，守不住正文 4.5。 */
-  --text-tertiary: #7d828a;
-  --hairline: #23252a;
+  /* on-dark-soft #a09d96 再退一档，浮层上仍守 4.5:1。 */
+  --text-tertiary: #918e86;
+  --hairline: #3a3733;
   --track: oklch(1 0 0 / 13%);
 
   --select-surface: oklch(0.232 0.032 228);
@@ -280,28 +286,35 @@
   --select-solid: oklch(0.74 0.11 228);
   --select-solid-fg: oklch(0.17 0.03 228);
 
-  --selection: color-mix(in oklch, #5e6ad2 40%, transparent);
-  --scrollbar-thumb: color-mix(in oklch, #8a8f98 38%, transparent);
+  --selection: color-mix(in oklch, #cc785c 40%, transparent);
+  --scrollbar-thumb: color-mix(in oklch, #a09d96 38%, transparent);
 
-  --chart-1: #828fff;
-  --chart-2: oklch(0.78 0.145 157);
-  --chart-3: oklch(0.82 0.135 88);
-  --chart-4: oklch(0.74 0.145 35);
-  --chart-5: oklch(0.72 0.145 320);
+  --chart-1: #da8568;
+  --chart-2: #5db8a6;
+  --chart-3: #e8a55a;
+  --chart-4: oklch(0.72 0.09 255);
+  --chart-5: oklch(0.72 0.12 330);
 
-  --sidebar: #010102;
-  --sidebar-foreground: #d0d6e0;
-  --sidebar-accent: #18191a;
-  --sidebar-accent-foreground: #f7f8f8;
+  --sidebar: #181715;
+  --sidebar-foreground: #d6d2c8;
+  --sidebar-accent: #2a2824;
+  --sidebar-accent-foreground: #faf9f5;
 }
 
 /*
  * 字体走默认 --font-sans / --font-mono，而不是 font-inter 类：字体切换器在
  * 运行时拼出 `font-${font}`，Tailwind 扫不到，那个类从来没生成过。
- * Linear Display / Text 是专有字体。按 DESIGN.md：macOS 落到 SF Pro，
- * 跨平台首选 Inter；中文落到苹方 / 雅黑。
+ * Claude 的 Copernicus（衬线标题）与 StyreneB（正文）都是专有字体，不打包
+ * webfont。按 DESIGN.md 的替代顺序：
+ * - display：Tiempos Headline → 系统书籍衬线（Iowan / Charter / Georgia），
+ *   中文落到宋体（Songti SC / Noto Serif SC / 思源宋体）。只给页面级标题。
+ * - sans：Inter（与 StyreneB 同属人文无衬线）→ 系统 UI，中文苹方 / 雅黑。
  */
 @theme {
+  --font-display:
+    'Copernicus', 'Tiempos Headline', 'Iowan Old Style', 'Charter',
+    'Source Serif 4', 'Source Serif Pro', Georgia, 'Songti SC', 'STSong',
+    'Noto Serif SC', 'Noto Serif CJK SC', 'Source Han Serif SC', 'SimSun', serif;
   --font-sans:
     'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text',
     'SF Pro Display', system-ui, 'Segoe UI', Roboto, 'PingFang SC',
@@ -315,7 +328,7 @@
   --font-inter: var(--font-sans);
   --font-manrope: 'Manrope', 'sans-serif';
 
-  /* Linear 圆角：xs 4 · sm 6 · md 8（按钮 / 输入）· lg 12（卡片）· xl 16（大面板）。 */
+  /* Claude 圆角：xs 4 · sm 6 · md 8（按钮 / 输入 / 页签）· lg 12（卡片）· xl 16（大面板）。 */
   --radius-xs: 4px;
   --radius-sm: calc(var(--radius) - 6px);
   --radius-md: calc(var(--radius) - 4px);
