@@ -1,0 +1,84 @@
+# Keep this repo's copy of the pinned slot payload in step with
+# deploy/payload.json. Image builds, release.yml and ci download from
+# github.com/<repo>/releases/download/<release>; when the pin moves (e.g. an
+# upstream sync), this mirrors the new release from dofastted/vm2api. Every
+# file is verified against the manifest before anything is published.
+name: mirror-payload
+
+on:
+  push:
+    paths:
+      - 'deploy/payload.json'
+      - '.github/workflows/mirror-payload.yml'
+  workflow_dispatch: {}
+
+# Branches that pin the same release must not race on `gh release create`.
+concurrency:
+  group: mirror-payload
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: write
+    env:
+      UPSTREAM: dofastted/vm2api
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: compare the pin with this repo's releases
+        id: pin
+        shell: bash
+        run: |
+          set -euo pipefail
+          repo=$(node -p 'require("./deploy/payload.json").repo')
+          release=$(node -p 'require("./deploy/payload.json").release')
+          echo "release=${release}" >> "$GITHUB_OUTPUT"
+          if [ "$repo" != "$GITHUB_REPOSITORY" ]; then
+            echo "payload is pinned to ${repo}; nothing to mirror"
+            echo "missing=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          have=$(gh release view "$release" --repo "$GITHUB_REPOSITORY" --json assets \
+            --jq '.assets[] | select(.state == "uploaded") | .name' 2>/dev/null || true)
+          missing=$(HAVE="$have" node -e '
+            const have = new Set(process.env.HAVE.split("\n").filter(Boolean))
+            const want = new Set(require("./deploy/payload.json").files.map((f) => f.asset))
+            console.log([...want].filter((a) => !have.has(a)).join(" "))')
+          echo "missing=$(wc -w <<< "$missing" | tr -d ' ')" >> "$GITHUB_OUTPUT"
+          echo "${release}: missing [${missing}]"
+      - name: fetch from upstream and verify every pin
+        if: steps.pin.outputs.missing != '0'
+        run: |
+          set -euo pipefail
+          VM2API_PAYLOAD_BASE_URL="https://github.com/${UPSTREAM}/releases/download" \
+            node scripts/fetch-payload.mjs --dest payload
+          node scripts/fetch-payload.mjs --dest payload --check
+          node scripts/fetch-payload.mjs --dest payload --stage dist
+          ls -l dist
+      - name: publish release
+        if: steps.pin.outputs.missing != '0'
+        env:
+          RELEASE: ${{ steps.pin.outputs.release }}
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$RELEASE" --repo "$GITHUB_REPOSITORY" --clobber dist/*
+          else
+            gh release create "$RELEASE" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --latest=false \
+              --title "$RELEASE" \
+              --notes "Slot payload pinned by deploy/payload.json, mirrored from ${UPSTREAM} and verified against every pinned size and sha256." \
+              dist/*
+          fi
+          gh release view "$RELEASE" --repo "$GITHUB_REPOSITORY"
