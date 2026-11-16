@@ -1,0 +1,72 @@
+# One-shot: mirror the pinned payload release into this repo so image builds no
+# longer depend on dofastted/vm2api. Upstream re-uploaded cli-node in that
+# release on 2026-11-12 (sha256 no longer matches deploy/payload.json), so the
+# pinned cli-node is recovered from the v1.4.060 image (built 2026-11-10) and
+# the other assets come from upstream. fetch-payload verifies every file
+# against deploy/payload.json before anything is published.
+name: oneshot-mirror-payload-20261101
+
+on:
+  push:
+    paths:
+      - '.github/workflows/oneshot-mirror-payload-20261101.yml'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      actions: write
+    env:
+      RELEASE: payload-2026.11.01-codex-image-kernel
+      UPSTREAM: https://github.com/dofastted/vm2api/releases/download
+      SOURCE_IMAGE: ghcr.io/dofastted/vm2api:v1.4.060-amd64
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: manifest pins this release
+        run: test "$(node -p 'require("./deploy/payload.json").release')" = "$RELEASE"
+      - name: recover pinned cli-node from the pre-swap image
+        run: |
+          set -euo pipefail
+          mkdir -p payload/share/wrap-cli
+          docker pull --platform linux/amd64 "$SOURCE_IMAGE"
+          cid=$(docker create --platform linux/amd64 "$SOURCE_IMAGE")
+          docker cp "$cid:/opt/vm2api/image-wrap-cli/cli-node" payload/share/wrap-cli/cli-node
+          docker rm "$cid"
+      - name: fetch the rest from upstream and verify every pin
+        run: |
+          set -euo pipefail
+          # cli-node already matches the manifest, so it is not downloaded again.
+          VM2API_PAYLOAD_BASE_URL="$UPSTREAM" node scripts/fetch-payload.mjs --dest payload
+          node scripts/fetch-payload.mjs --dest payload --check
+          node scripts/fetch-payload.mjs --dest payload --stage dist
+          ls -l dist
+      - name: publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$RELEASE" --repo "$GITHUB_REPOSITORY" --clobber dist/*
+          else
+            gh release create "$RELEASE" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --latest=false \
+              --title "$RELEASE" \
+              --notes "Slot payload pinned by deploy/payload.json, mirrored from dofastted/vm2api. cli-node is the pinned original (sha256 8484c4c5…), recovered from ${SOURCE_IMAGE}; upstream replaced it in its copy of this release on 2026-11-12." \
+              dist/*
+          fi
+          gh release view "$RELEASE" --repo "$GITHUB_REPOSITORY"
+      - name: rebuild the branch image
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run branch-image.yml --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME"
