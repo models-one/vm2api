@@ -17,12 +17,17 @@ const execFileAsync = promisify(execFile)
 const UPGRADE_SCRIPT = fs.readFileSync(path.join(MODULE_PROJECT, 'scripts', 'panel-upgrade.sh'), 'utf8')
 
 export const GITHUB_REPO = 'dofastted/vm2api'
+// Where the panel looks for a newer control plane. This fork publishes its own
+// images, so upstream releases are not upgrades for it. Kernel / CLI payload
+// downloads and the install script still come from GITHUB_REPO.
+export const RELEASE_CHECK_REPO = 'models-one/vm2api'
 export const INSTALL_SCRIPT_URL = `https://raw.githubusercontent.com/${GITHUB_REPO}/main/deploy/install.sh`
 export const DOCKER_SOCK = '/var/run/docker.sock'
 
 const DEFAULT_CACHE_MS = 5 * 60 * 1000
 const GITHUB_TIMEOUT_MS = 8000
-const releaseCache = { at: 0, value: null, error: null }
+// `none`: the last successful lookup found no published version release.
+const releaseCache = { at: 0, value: null, error: null, none: false }
 
 export function projectRoot(explicit) {
   return explicit || process.env.KIN_PROJECT_ROOT || process.env.VM2API_HOST_ROOT || MODULE_PROJECT
@@ -229,7 +234,7 @@ export function publicRelease(payload) {
     version,
     tag: normalizeTag(version),
     name: payload.name || `vm2api ${version}`,
-    html_url: payload.html_url || `https://github.com/${GITHUB_REPO}/releases/tag/${normalizeTag(version)}`,
+    html_url: payload.html_url || `https://github.com/${RELEASE_CHECK_REPO}/releases/tag/${normalizeTag(version)}`,
     published_at: payload.published_at || payload.created_at || null,
     notes: String(payload.body || '').trim(),
   }
@@ -241,7 +246,7 @@ export async function fetchLatestRelease({
   cacheMs = DEFAULT_CACHE_MS,
 } = {}) {
   const ts = now()
-  if (releaseCache.value && ts - releaseCache.at < cacheMs) {
+  if ((releaseCache.value || releaseCache.none) && ts - releaseCache.at < cacheMs) {
     return { release: releaseCache.value, error: releaseCache.error, cached: true }
   }
   if (!fetchImpl) {
@@ -250,7 +255,9 @@ export async function fetchLatestRelease({
     return { release: releaseCache.value, error: 'fetch_unavailable', cached: false }
   }
   try {
-    const res = await fetchImpl(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`, {
+    // The repo also hosts payload-* asset releases, which GitHub reports as
+    // `latest` when they are the newest; list and take the highest vX.Y.Z.
+    const res = await fetchImpl(`https://api.github.com/repos/${RELEASE_CHECK_REPO}/releases?per_page=100`, {
       headers: githubHeaders(),
       signal: AbortSignal.timeout(GITHUB_TIMEOUT_MS),
     })
@@ -260,15 +267,20 @@ export async function fetchLatestRelease({
       releaseCache.error = error
       return { release: releaseCache.value, error, cached: false }
     }
-    const release = publicRelease(await res.json())
-    if (!release) {
-      const error = 'github_empty'
+    const list = await res.json()
+    if (!Array.isArray(list)) {
+      const error = 'github_invalid'
       releaseCache.at = ts
       releaseCache.error = error
       return { release: releaseCache.value, error, cached: false }
     }
+    const release = list
+      .filter((item) => item && !item.draft && !item.prerelease && isReleaseTag(item.tag_name))
+      .map(publicRelease)
+      .reduce((best, item) => (!best || compareSemver(item.version, best.version) > 0 ? item : best), null)
     releaseCache.at = ts
     releaseCache.value = release
+    releaseCache.none = !release
     releaseCache.error = null
     return { release, error: null, cached: false }
   } catch (err) {
@@ -283,6 +295,7 @@ export function clearReleaseCache() {
   releaseCache.at = 0
   releaseCache.value = null
   releaseCache.error = null
+  releaseCache.none = false
 }
 
 export async function buildUpdateStatus({ projectRoot: root, currentVersion, upgrade, fetchImpl, now, cacheMs } = {}) {
@@ -292,7 +305,8 @@ export async function buildUpdateStatus({ projectRoot: root, currentVersion, upg
   const remote = await fetchLatestRelease({ fetchImpl, now, cacheMs })
   const latest = remote.error ? null : remote.release?.version || null
   const newer = changelogSince(entries, current)
-  const updateAvailable = latest ? compareSemver(latest, current) > 0 : null
+  // A clean lookup that found no published release means nothing to upgrade to.
+  const updateAvailable = latest ? compareSemver(latest, current) > 0 : remote.error ? null : false
   const needsWrap = newer.some((entry) => entry.needs_wrap_cli_sync)
   return {
     current,
@@ -300,8 +314,8 @@ export async function buildUpdateStatus({ projectRoot: root, currentVersion, upg
     latest,
     latest_tag: latest ? normalizeTag(latest) : null,
     update_available: updateAvailable,
-    check_status: latest ? 'ok' : 'failed',
-    html_url: remote.release?.html_url || `https://github.com/${GITHUB_REPO}/releases`,
+    check_status: remote.error ? 'failed' : 'ok',
+    html_url: remote.release?.html_url || `https://github.com/${RELEASE_CHECK_REPO}/releases`,
     published_at: remote.release?.published_at || null,
     name: remote.release?.name || null,
     notes: remote.release?.notes || newer[0]?.title || '',
@@ -309,7 +323,7 @@ export async function buildUpdateStatus({ projectRoot: root, currentVersion, upg
     needs_wrap_cli_sync: needsWrap,
     upgrade_command: upgradeCommand(updateAvailable ? latest : ''),
     check_command: `sudo bash ${hostRoot(root)}/deploy/install.sh check`,
-    repo: GITHUB_REPO,
+    repo: RELEASE_CHECK_REPO,
     source_error: remote.error,
     ...(upgrade ? { upgrade } : {}),
   }

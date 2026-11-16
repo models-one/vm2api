@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { DOCS_URL, REPO_URL } from '@/config/repo'
+import { DOCS_URL, RELEASE_REPO_URL, REPO_URL } from '@/config/repo'
 import { ArrowUpRight, BookOpen, Menu, Sparkles, X } from 'lucide-react'
 import { IconGithub } from '@/assets/brand-icons'
 import { Logo } from '@/assets/logo'
@@ -126,7 +126,7 @@ function UpdateNotice({ version }: { version?: string }) {
   const [dismissed, setDismissed] = useState(readDismissedRelease)
   const { data: latest } = useQuery({
     queryKey: ['github-latest-release'],
-    queryFn: () => fetchLatestRelease(REPO_URL),
+    queryFn: () => fetchLatestRelease(RELEASE_REPO_URL),
     enabled: Boolean(version),
     staleTime: RELEASE_CHECK_INTERVAL_MS,
     refetchInterval: RELEASE_CHECK_INTERVAL_MS,

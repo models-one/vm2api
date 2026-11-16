@@ -90,7 +90,7 @@ function dockerFixture(root, { job = null, runError = null, containerized = true
   }
 }
 
-const releaseFetch = async () => ({ ok: true, json: async () => ({ tag_name: 'v1.2.7', body: '' }) })
+const releaseFetch = async () => ({ ok: true, json: async () => [{ tag_name: 'v1.2.7', body: '' }] })
 
 test('parseChangelog reads Keep-a-Changelog headings and wrap-cli flag', () => {
   const entries = parseChangelog(FIXTURE)
@@ -164,13 +164,15 @@ test('buildUpdateStatus reports an available GitHub release and the one-click co
       cacheMs: 0,
       fetchImpl: async () => ({
         ok: true,
-        json: async () => ({
-          tag_name: 'v1.2.7',
-          name: 'vm2api v1.2.7',
-          html_url: 'https://github.com/dofastted/vm2api/releases/tag/v1.2.7',
-          published_at: '2026-09-21T00:00:00Z',
-          body: '一键更新',
-        }),
+        json: async () => [
+          {
+            tag_name: 'v1.2.7',
+            name: 'vm2api v1.2.7',
+            html_url: 'https://github.com/models-one/vm2api/releases/tag/v1.2.7',
+            published_at: '2026-09-21T00:00:00Z',
+            body: '一键更新',
+          },
+        ],
       }),
     })
     assert.equal(status.current, '1.2.6')
@@ -222,7 +224,7 @@ test('startHostUpgrade without confirm only returns the command', async () => {
       confirm: false,
       fetchImpl: async () => ({
         ok: true,
-        json: async () => ({ tag_name: 'v1.2.7', body: '' }),
+        json: async () => [{ tag_name: 'v1.2.7', body: '' }],
       }),
       spawnImpl() {
         throw new Error('should not spawn')

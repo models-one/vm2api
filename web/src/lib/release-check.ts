@@ -25,7 +25,7 @@ export function compareVersions(a: string, b: string): number {
 
 export function hasNewerRelease(
   current: string | undefined,
-  latest: LatestRelease | undefined,
+  latest: LatestRelease | null | undefined,
   dismissed: string | null
 ): boolean {
   if (!current || !latest?.version) return false
@@ -33,20 +33,47 @@ export function hasNewerRelease(
   return compareVersions(latest.version, current) > 0
 }
 
+type GithubRelease = {
+  tag_name?: string
+  html_url?: string
+  draft?: boolean
+  prerelease?: boolean
+}
+
+/** 已发布的最高 vX.Y.Z；仓库里的 payload-* 资产 release 和预发布不算。没有则为 null。 */
+export function pickLatestRelease(
+  releases: GithubRelease[],
+  repoUrl: string
+): LatestRelease | null {
+  let best: LatestRelease | null = null
+  for (const item of releases) {
+    const tag = String(item?.tag_name || '')
+    if (item?.draft || item?.prerelease || !/^v\d+\.\d+\.\d+$/.test(tag)) {
+      continue
+    }
+    const version = tag.slice(1)
+    if (!best || compareVersions(version, best.version) > 0) {
+      best = {
+        version,
+        url: String(item.html_url || `${repoUrl}/releases/tag/${tag}`),
+      }
+    }
+  }
+  return best
+}
+
 export async function fetchLatestRelease(
   repoUrl: string
-): Promise<LatestRelease> {
+): Promise<LatestRelease | null> {
   const repo = repoUrl.replace(/^https:\/\/github\.com\//, '')
   const res = await fetch(
-    `https://api.github.com/repos/${repo}/releases/latest`,
+    `https://api.github.com/repos/${repo}/releases?per_page=100`,
     { headers: { Accept: 'application/vnd.github+json' } }
   )
   if (!res.ok) throw new Error(`GitHub releases ${res.status}`)
-  const body = (await res.json()) as { tag_name?: string; html_url?: string }
-  return {
-    version: String(body.tag_name || '').replace(/^v/i, ''),
-    url: String(body.html_url || `${repoUrl}/releases/latest`),
-  }
+  const body: unknown = await res.json()
+  if (!Array.isArray(body)) throw new Error('GitHub releases: invalid list')
+  return pickLatestRelease(body as GithubRelease[], repoUrl)
 }
 
 export function readDismissedRelease(): string | null {

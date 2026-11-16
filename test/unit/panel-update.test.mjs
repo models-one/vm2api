@@ -11,7 +11,7 @@ test('panel version remains the loaded backend version until a new handler boots
   clearReleaseCache()
   t.mock.method(globalThis, 'fetch', async () => ({
     ok: true,
-    json: async () => ({ tag_name: 'v1.2.7' }),
+    json: async () => [{ tag_name: 'v1.2.7' }],
   }))
   try {
     fs.writeFileSync(path.join(project, 'VERSION'), '1.2.6\n')
