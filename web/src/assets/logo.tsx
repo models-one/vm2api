@@ -1,54 +1,27 @@
 import { type SVGProps } from 'react'
 import { cn } from '@/lib/utils'
 
+/**
+ * cc2api 标志：两道同心 C（Claude Code）开口朝右，圆点从开口出去（→ API）。
+ * 单色，跟 currentColor 走：侧栏与登录页把它放在珊瑚色方块上用奶油白。
+ */
 export function Logo({ className, ...props }: SVGProps<SVGSVGElement>) {
   return (
     <svg
-      id='vm2api-brand-logo'
+      id='cc2api-brand-logo'
       viewBox='0 0 48 48'
       xmlns='http://www.w3.org/2000/svg'
       fill='none'
+      stroke='currentColor'
+      strokeWidth='4.5'
+      strokeLinecap='round'
       className={cn('size-6', className)}
       {...props}
     >
-      <title>vm2api</title>
-      <defs>
-        <filter id='vm2api-glow' x='-30%' y='-30%' width='160%' height='160%'>
-          <feGaussianBlur in='SourceGraphic' stdDeviation='2' result='blur' />
-          <feMerge>
-            <feMergeNode in='blur' />
-            <feMergeNode in='SourceGraphic' />
-          </feMerge>
-        </filter>
-        <linearGradient id='vm2api-cyan' x1='0%' y1='0%' x2='100%' y2='100%'>
-          <stop offset='0%' stopColor='#00f0ff' />
-          <stop offset='100%' stopColor='#0099ff' />
-        </linearGradient>
-      </defs>
-
-      {/* Terminal Chevron > */}
-      <path
-        d='M12 12 L24 24 L12 36'
-        stroke='currentColor'
-        strokeWidth='5.5'
-        strokeLinecap='round'
-        strokeLinejoin='round'
-      />
-
-      {/* Neon Cyan Slash / */}
-      <path
-        d='M28 36 L36 12'
-        stroke='url(#vm2api-cyan)'
-        strokeWidth='5.5'
-        strokeLinecap='round'
-        filter='url(#vm2api-glow)'
-      />
-      <path
-        d='M28 36 L36 12'
-        stroke='#00f0ff'
-        strokeWidth='4.5'
-        strokeLinecap='round'
-      />
+      <title>cc2api</title>
+      <path d='M32.9 12.5A15.5 15.5 0 1 0 32.9 35.5' />
+      <path d='M26.5 18.3A7 7 0 1 0 26.5 29.7' />
+      <circle cx='41' cy='24' r='3.5' fill='currentColor' stroke='none' />
     </svg>
   )
 }

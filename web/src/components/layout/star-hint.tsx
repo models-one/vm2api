@@ -64,7 +64,7 @@ export function StarHint() {
         </span>
         <div className='min-w-0 space-y-2.5'>
           <div className='space-y-0.5'>
-            <p className='text-sm font-semibold'>觉得 vm2api 好用？</p>
+            <p className='text-sm font-semibold'>觉得 cc2api 好用？</p>
             <p className='text-[13px] leading-snug text-muted-foreground'>
               去 GitHub 点个 Star，帮更多人发现这个项目。
             </p>

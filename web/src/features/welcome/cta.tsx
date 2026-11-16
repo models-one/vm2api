@@ -70,7 +70,7 @@ export function WelcomeFooter() {
   return (
     <footer className='dark dark-surface relative z-10 bg-card px-6 py-12'>
       <div className='mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground'>
-        <span className='font-display text-lg text-foreground'>vm2api</span>
+        <span className='font-display text-lg text-foreground'>cc2api</span>
         <span>
           个人学习与非商用自建 ·{' '}
           <a

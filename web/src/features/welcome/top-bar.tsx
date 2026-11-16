@@ -60,7 +60,7 @@ export function WelcomeTopBar({
             <span className='grid size-7 place-items-center rounded-md bg-primary text-primary-foreground'>
               <Logo aria-hidden className='size-4' />
             </span>
-            <span className='font-display text-[1.0625rem]'>vm2api</span>
+            <span className='font-display text-[1.0625rem]'>cc2api</span>
           </button>
 
           <div className='flex items-center gap-0.5'>

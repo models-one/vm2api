@@ -90,7 +90,7 @@ export const sidebarData: SidebarData = {
   },
   teams: [
     {
-      name: 'vm2api',
+      name: 'cc2api',
       logo: LayoutDashboard,
       plan: 'Console API',
     },

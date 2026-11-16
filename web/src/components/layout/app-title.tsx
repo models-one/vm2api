@@ -42,7 +42,7 @@ export function AppTitle({ version }: { version?: string }) {
           <Link
             to='/overview'
             onClick={() => setOpenMobile(false)}
-            aria-label='vm2api 概览'
+            aria-label='cc2api 概览'
             className='flex min-w-0 flex-1 items-center gap-2.5 rounded-lg outline-hidden focus-visible:ring-2 focus-visible:ring-sidebar-ring'
           >
             <span className='grid size-10 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground group-data-[collapsible=icon]:size-8'>
@@ -52,7 +52,7 @@ export function AppTitle({ version }: { version?: string }) {
               />
             </span>
             <span className='grid min-w-0 leading-tight group-data-[collapsible=icon]:hidden'>
-              <span className='truncate font-display text-lg'>vm2api</span>
+              <span className='truncate font-display text-lg'>cc2api</span>
               <span className='truncate text-xs text-muted-foreground'>
                 管理台
               </span>
