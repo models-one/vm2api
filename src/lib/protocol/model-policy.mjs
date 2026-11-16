@@ -103,6 +103,15 @@ const CAP_ADAPTIVE_ONLY = {
   supports_context_management: true,
 }
 
+// Adaptive is allowed, not required. CRAG rejectsDisabledThinking is false for
+// these ids, so a third-party forced tool_choice with thinking omitted is legal.
+const ADAPTIVE_OPTIONAL_IDS = new Set(['claude-opus-4-7', 'claude-opus-4-8', 'claude-sonnet-5', 'claude-opus-5'])
+const CAP_ADAPTIVE = {
+  ...CAP_ADAPTIVE_ONLY,
+  thinking_mode: 'adaptive_or_enabled',
+  requires_adaptive: false,
+}
+
 const CAP_CODEX = {
   context_window: 272000,
   supports_1m: false,
@@ -259,7 +268,7 @@ export function seedDefaultPolicy() {
     display_name: 'Opus 4.7',
     family: 'opus',
     sort: 28,
-    capabilities: CAP_ADAPTIVE_ONLY,
+    capabilities: CAP_ADAPTIVE,
     betas: { pass_context_1m: false },
     params: {
       max_tokens_default: 32000,
@@ -273,7 +282,7 @@ export function seedDefaultPolicy() {
     display_name: 'Opus 4.8',
     family: 'opus',
     sort: 29,
-    capabilities: CAP_ADAPTIVE_ONLY,
+    capabilities: CAP_ADAPTIVE,
     betas: { pass_context_1m: false },
     params: {
       max_tokens_default: 32000,
@@ -287,7 +296,7 @@ export function seedDefaultPolicy() {
     display_name: 'Sonnet 5',
     family: 'sonnet',
     sort: 30,
-    capabilities: CAP_ADAPTIVE_ONLY,
+    capabilities: CAP_ADAPTIVE,
     betas: { pass_context_1m: true },
     params: {
       max_tokens_default: 64000,
@@ -320,7 +329,7 @@ export function seedDefaultPolicy() {
     display_name: 'Opus 5',
     family: 'opus',
     sort: 35,
-    capabilities: CAP_ADAPTIVE_ONLY,
+    capabilities: CAP_ADAPTIVE,
     betas: { pass_context_1m: false },
     params: {
       max_tokens_default: 32000,
@@ -512,6 +521,16 @@ export function normalizePolicy(raw) {
     if (cfg.params?.on_enabled === 'convert_to_adaptive' && id !== OPUS_55_ID) {
       cfg.params = { ...cfg.params, on_enabled: 'passthrough' }
     }
+    // Older panel rows copied adaptive-only onto models that still accept
+    // disabled thinking. Stored true would keep rejecting forced tool_choice.
+    if (ADAPTIVE_OPTIONAL_IDS.has(id)) {
+      cfg.capabilities = {
+        ...cfg.capabilities,
+        thinking_mode: 'adaptive_or_enabled',
+        supports_adaptive: true,
+        requires_adaptive: false,
+      }
+    }
     if (typeof cfg.betas?.pass_context_1m !== 'boolean') {
       const seeded = seed.models[id]?.betas?.pass_context_1m
       cfg.betas = {
@@ -564,8 +583,11 @@ function heuristicCapabilities(modelId = '') {
   if (/claude-haiku-5/.test(m)) return { ...CAP_HAIKU_55 }
   if (m.includes('haiku') || /claude-3[.-]/.test(m)) return { ...CAP_HAIKU }
   if (/claude-(sonnet|opus)-4-5/.test(m)) return { ...CAP_SONNET45 }
-  if (/claude-(opus|sonnet|fable|mythos)-5/.test(m) || /claude-opus-4-[78]/.test(m)) {
+  if (/claude-(?:opus|sonnet)-5(?:-5|\.5)(?![0-9])/.test(m) || /claude-(?:fable|mythos)-5/.test(m)) {
     return { ...CAP_ADAPTIVE_ONLY }
+  }
+  if (/claude-(?:opus|sonnet)-5/.test(m) || /claude-opus-4-[78]/.test(m)) {
+    return { ...CAP_ADAPTIVE }
   }
   if (/claude-(sonnet|opus)-4-6/.test(m)) return { ...CAP_46 }
   return { ...CAP_46 }
@@ -769,6 +791,7 @@ export function modelDirectiveForCrag(modelId = '') {
     capabilities: {
       thinking_mode: String(caps.thinking_mode || ''),
       supports_adaptive: caps.supports_adaptive === true,
+      requires_adaptive: caps.requires_adaptive === true,
       supports_effort: caps.supports_effort === true,
       supports_context_management: caps.supports_context_management === true,
       supports_1m: caps.supports_1m === true,
@@ -841,10 +864,22 @@ function adaptiveOnlyThinking(thinking) {
   return { type: 'adaptive' }
 }
 
+export function hasForcedToolChoice(body) {
+  return ['tool', 'any'].includes(body?.tool_choice?.type)
+}
+
+export function requiredAdaptiveThinking(body) {
+  if (body.thinking != null && body.thinking.type !== 'disabled') return
+  if (hasForcedToolChoice(body) || getCapabilities(body.model).requires_adaptive !== true) return
+  return adaptiveOnlyThinking(body.thinking)
+}
+
 export function normalizeThinkingByPolicy(body = {}) {
   if (!loaded) loadModelPolicy()
   if (!body || typeof body !== 'object') return body
   if (policy.defaults.normalize_thinking === false) return body
+  const required = requiredAdaptiveThinking(body)
+  if (required) body.thinking = required
   const thinking = body.thinking
   if (!thinking || typeof thinking !== 'object') return body
 
@@ -906,11 +941,17 @@ export function isHaiku55Model(model = '') {
   return /^claude-haiku-5(?:-5|\.5)(?=-|$)/i.test(bare || '')
 }
 
+function haiku55EffortRequiresThinking(body) {
+  const topLevel = String(body.output_config?.effort ?? '')
+    .trim()
+    .toLowerCase()
+  return [topLevel, reasoningEffortOf(body)].some((effort) => effort === 'xhigh' || effort === 'max')
+}
+
 function applyHaiku55Thinking(body) {
   if (!body.thinking || typeof body.thinking !== 'object') return body
   const type = String(body.thinking.type || '').toLowerCase()
-  const effort = String(reasoningEffortOf(body) || '').toLowerCase()
-  const disabledBlocked = type === 'disabled' && (effort === 'xhigh' || effort === 'max')
+  const disabledBlocked = type === 'disabled' && haiku55EffortRequiresThinking(body)
   if (type === 'enabled' || body.thinking.budget_tokens != null || disabledBlocked) {
     body.thinking = adaptiveOnlyThinking(body.thinking)
   }
@@ -1143,7 +1184,7 @@ export function validateToolChoice(body = {}) {
   if (choice.type !== 'none' && tools.length === 0) invalid('tool_choice requires a non-empty tools list.')
   if (choice.type === 'tool' && (!choice.name || !tools.some((tool) => tool?.name === choice.name)))
     invalid('tool_choice.name must identify a supplied tool.')
-  if (!['any', 'tool'].includes(choice.type)) return
+  if (!hasForcedToolChoice(body)) return
   const entry = getModelEntry(body.model)
   if (entry.capabilities?.requires_adaptive === true)
     invalid(
@@ -1152,4 +1193,10 @@ export function validateToolChoice(body = {}) {
     )
   if (['enabled', 'adaptive'].includes(body.thinking?.type))
     invalid('Forced tool_choice cannot be combined with enabled or adaptive thinking.', 'tool_choice_incompatible')
+  if (entry.id === HAIKU_55_ID || isHaiku55Model(body.model)) {
+    if (haiku55EffortRequiresThinking(body))
+      invalid('Forced tool_choice on Haiku 5.5 requires effort of high or lower.', 'tool_choice_incompatible')
+    if (body.thinking?.budget_tokens != null)
+      invalid('Forced tool_choice on Haiku 5.5 cannot include a thinking budget.', 'tool_choice_incompatible')
+  }
 }

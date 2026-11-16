@@ -2,11 +2,17 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import vmContext from 'node:vm'
 import test from 'node:test'
-import { clusterCragContainerReady, clusterDockerCommandReady } from '../../src/lib/cluster/remote-slot.mjs'
+import {
+  clusterCragContainerReady,
+  clusterDockerCommandReady,
+  slotContainerBody,
+} from '../../src/lib/cluster/remote-slot.mjs'
+import { hasClusterSubscriptionBinds } from '../../src/lib/cluster/crag-subscription-files.mjs'
 import { createKernelWatchdog } from '../../src/lib/transport/kernel-watchdog.mjs'
 import { kernelFaults } from '../../src/lib/transport/rust-kernel-client.mjs'
 import { dockerEnvMap, ensureKvmMachineRecord, kvmEnvMapIncomplete } from '../../src/lib/vm/kvm-machine.mjs'
 import { REMOTE_CRAG_ENTRY, REMOTE_KERNEL_ENTRY } from '../../src/lib/vm/slot-engine.mjs'
+import { kernelCpuCommand } from '../../src/lib/vm/kernel-cpu.mjs'
 
 // Execute the exact production lifecycle body with synthetic I/O boundaries.
 // No SSH, Docker daemon, credentials or production filesystem is accessed.
@@ -15,6 +21,38 @@ const start = source.slice(
   source.indexOf('export async function startRemoteSlot('),
   source.indexOf('/** Remote twin of reloadSlotWorker'),
 )
+
+test('remote CRAG KVM preparation resolves guest and egress images instead of rejecting placement', async () => {
+  const prepare = source.slice(source.indexOf('async function prepare('), source.indexOf('function runtimeLabelOf('))
+  const images = []
+  const session = { host: {}, docker: {} }
+  const target = { id: 'vm-kvm', node_id: 'node-a', dataplane: 'crag', runtime: { type: 'kvm' } }
+  const run = vmContext.runInNewContext(`${prepare}; prepare`, {
+    isKvmRuntime: () => true,
+    resolveKernelDataplane: () => 'crag',
+    OS_CATALOG: { 'ubuntu-24.04': {} },
+    normalizeTimezone: (value) => value || 'UTC',
+    STANDARD_LOCALE: 'en_US.UTF-8',
+    vmNodeId: (vm) => vm.node_id,
+    nodeSession: async () => session,
+    runtimeKind: () => 'kvm',
+    ensureNodeSlotImage: async (_session, _node, _root, kernel, kind) => {
+      images.push([kernel, kind])
+      return { ref: `image-${kind}` }
+    },
+    remoteSlotOwner: () => ({ uid: 1000, gid: 1000 }),
+    remoteSlotDir: () => '/remote/vms/vm-kvm',
+    path: { join: (...parts) => parts.join('/') },
+  })
+  const result = await run(target, '/fixture', {})
+  assert.equal(result.fail, undefined)
+  assert.equal(result.image, 'image-kvm')
+  assert.equal(result.egressImage, 'image-docker')
+  assert.deepEqual(images, [
+    ['ubuntu-24.04', 'kvm'],
+    ['ubuntu-24.04', 'docker'],
+  ])
+})
 
 function cragReadyContainer(base) {
   return {
@@ -30,12 +68,13 @@ function cragReadyContainer(base) {
     },
   }
 }
-function kernelContainer(base) {
+function kernelContainer(base, cpuWrapped = false) {
+  const argv = [REMOTE_KERNEL_ENTRY, '--gateway-worker', '--config', '/run/kin/kernel.json']
   return {
     ...base,
     Config: {
       ...base.Config,
-      Cmd: [REMOTE_KERNEL_ENTRY, '--gateway-worker', '--config', '/run/kin/kernel.json'],
+      Cmd: cpuWrapped ? kernelCpuCommand(argv) : argv,
     },
   }
 }
@@ -48,6 +87,8 @@ function fixture({
   kind = 'docker',
   removeFails = false,
   cragReady = false,
+  subscription = false,
+  cpuWrapped = false,
 } = {}) {
   const calls = []
   const target = {
@@ -66,7 +107,13 @@ function fixture({
     HostConfig: { NetworkMode: 'network' },
     State: { Running: running, Restarting: restarting },
   }
-  let info = missing ? null : kind !== 'docker' ? base : cragReady ? cragReadyContainer(base) : kernelContainer(base)
+  let info = missing
+    ? null
+    : kind !== 'docker'
+      ? base
+      : cragReady
+        ? cragReadyContainer(base)
+        : kernelContainer(base, cpuWrapped)
   const io = {
     prepare: async () => ({
       nodeId: target.node_id,
@@ -122,10 +169,32 @@ function fixture({
     clusterDockerClaude: (vm) => kind === 'docker' && Boolean(vm?.node_id),
     resolveKernelDataplane: (vm) => vm?.dataplane || 'kernel',
     projectCragUniversalVm: async () => {},
+    readCragClusterSubscription: () => subscription,
+    hasClusterSubscriptionBinds,
+    publishClusterSubscription: async () => calls.push('publish-subscription'),
   }
   const boot = vmContext.runInNewContext(`${start.replace('export ', '')}; startRemoteSlot`, io)
   return { calls, target, boot: () => boot(target, '/fixture'), state: () => info?.State }
 }
+
+test('a subscribed cluster Docker slot replaces the old container before starting with read-only license mounts', async () => {
+  const f = fixture({ cragReady: true, subscription: true })
+  f.target.dataplane = 'crag'
+  f.target.crag_kernel_version = 'v2'
+  assert.equal((await f.boot()).action, 'created')
+  assert.deepEqual(f.calls, ['remove', 'files', 'publish-subscription', 'create', 'start', 'runtime'])
+  const body = slotContainerBody(f.target, {
+    image: 'fixture',
+    network: 'fixture',
+    remoteDir: '/fixture',
+    user: '1000:1000',
+    routing: {},
+    subscription: true,
+  })
+  assert.equal(hasClusterSubscriptionBinds(body, '/fixture'), true)
+  assert.ok(body.HostConfig.Binds.includes('/fixture/subscription-host:/run/kin/crag-host:ro'))
+  assert.ok(body.HostConfig.Binds.includes('/fixture/subscription-license:/run/kin/crag-license:ro'))
+})
 
 for (const kind of ['docker', 'kvm']) {
   for (const running of [true, false]) {
@@ -141,6 +210,7 @@ for (const kind of ['docker', 'kvm']) {
 
 for (const [options, action, calls] of [
   [{}, 'already-running', ['runtime']],
+  [{ cpuWrapped: true }, 'already-running', ['runtime']],
   [{ running: false }, 'started', ['files', 'start', 'runtime']],
   [{ missing: true }, 'created', ['files', 'create', 'start', 'runtime']],
   [{ mismatch: true }, 'created', ['remove', 'files', 'create', 'start', 'runtime']],
@@ -152,6 +222,15 @@ for (const [options, action, calls] of [
     assert.deepEqual(f.calls, calls)
   })
 }
+
+test('remote readiness accepts direct and CPU-wrapped entries but not another executable', () => {
+  const vm = { node_id: 'node-fixture' }
+  for (const cpuWrapped of [false, true]) {
+    assert.equal(clusterDockerCommandReady(vm, kernelContainer({}, cpuWrapped), {}), true)
+  }
+  const wrong = kernelCpuCommand(['/bin/sleep', 'infinity'])
+  assert.equal(clusterDockerCommandReady(vm, { Config: { Cmd: wrong } }, {}), false)
+})
 
 test('failed restart-loop removal does not create or claim successful recovery', async () => {
   const f = fixture({ restarting: true, removeFails: true })
