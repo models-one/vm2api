@@ -3,6 +3,9 @@
 # github.com/<repo>/releases/download/<release>; when the pin moves (e.g. an
 # upstream sync), this mirrors the new release from dofastted/vm2api. Every
 # file is verified against the manifest before anything is published.
+#
+# crag assets live in their own release (`crag_release`), as upstream publishes
+# them; the mirror recreates that split here.
 name: mirror-payload
 
 on:
@@ -34,51 +37,89 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: '22'
-      - name: compare the pin with this repo's releases
+      - name: find assets missing from this repo
         id: pin
         shell: bash
         run: |
           set -euo pipefail
           repo=$(node -p 'require("./deploy/payload.json").repo')
           release=$(node -p 'require("./deploy/payload.json").release')
-          echo "release=${release}" >> "$GITHUB_OUTPUT"
+          crag=$(node -p 'require("./deploy/payload.json").crag_release || require("./deploy/payload.json").release')
+          {
+            echo "release=$release"
+            echo "crag_release=$crag"
+          } >> "$GITHUB_OUTPUT"
           if [ "$repo" != "$GITHUB_REPOSITORY" ]; then
             echo "payload is pinned to ${repo}; nothing to mirror"
             echo "missing=0" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          have=$(gh release view "$release" --repo "$GITHUB_REPOSITORY" --json assets \
-            --jq '.assets[] | select(.state == "uploaded") | .name' 2>/dev/null || true)
-          missing=$(HAVE="$have" node -e '
-            const have = new Set(process.env.HAVE.split("\n").filter(Boolean))
-            const want = new Set(require("./deploy/payload.json").files.map((f) => f.asset))
-            console.log([...want].filter((a) => !have.has(a)).join(" "))')
-          echo "missing=$(wc -w <<< "$missing" | tr -d ' ')" >> "$GITHUB_OUTPUT"
-          echo "${release}: missing [${missing}]"
+          uploaded() {
+            gh release view "$1" --repo "$GITHUB_REPOSITORY" --json assets \
+              --jq '.assets[] | select(.state == "uploaded") | .name' 2>/dev/null || true
+          }
+          HAVE_MAIN=$(uploaded "$release") HAVE_CRAG=$(uploaded "$crag") \
+            node - <<'NODE' >> "$GITHUB_OUTPUT"
+          const manifest = require("./deploy/payload.json")
+          const isCrag = (f) => f.path.startsWith('share/crag/') || f.path === 'dist/crag-v2-licensed-amd64.tar.gz'
+          const have = (value) => new Set(String(value || '').split('\n').filter(Boolean))
+          const missingFrom = (predicate, present) => [
+            ...new Set(manifest.files.filter(predicate).map((f) => f.asset)),
+          ].filter((asset) => !present.has(asset))
+          const main = missingFrom((f) => !isCrag(f), have(process.env.HAVE_MAIN))
+          const crag = missingFrom(isCrag, have(process.env.HAVE_CRAG))
+          console.log(`main_missing=${main.join(' ')}`)
+          console.log(`crag_missing=${crag.join(' ')}`)
+          console.log(`missing=${main.length + crag.length}`)
+          NODE
+          echo "${release}: posted missing asset lists to the job outputs"
       - name: fetch from upstream and verify every pin
         if: steps.pin.outputs.missing != '0'
         run: |
           set -euo pipefail
+          # fetch-payload reads crag assets from manifest.crag_release, so it
+          # pulls each asset from the release upstream published it in.
           VM2API_PAYLOAD_BASE_URL="https://github.com/${UPSTREAM}/releases/download" \
             node scripts/fetch-payload.mjs --dest payload
           node scripts/fetch-payload.mjs --dest payload --check
           node scripts/fetch-payload.mjs --dest payload --stage dist
           ls -l dist
-      - name: publish release
+      - name: publish releases
         if: steps.pin.outputs.missing != '0'
         env:
           RELEASE: ${{ steps.pin.outputs.release }}
+          CRAG_RELEASE: ${{ steps.pin.outputs.crag_release }}
+          MAIN_MISSING: ${{ steps.pin.outputs.main_missing }}
+          CRAG_MISSING: ${{ steps.pin.outputs.crag_missing }}
         run: |
           set -euo pipefail
-          if gh release view "$RELEASE" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload "$RELEASE" --repo "$GITHUB_REPOSITORY" --clobber dist/*
-          else
-            gh release create "$RELEASE" \
-              --repo "$GITHUB_REPOSITORY" \
-              --target "$GITHUB_SHA" \
-              --latest=false \
-              --title "$RELEASE" \
-              --notes "Slot payload pinned by deploy/payload.json, mirrored from ${UPSTREAM} and verified against every pinned size and sha256." \
-              dist/*
+          publish() {
+            rel=$1
+            shift
+            files=''
+            for asset in "$@"; do
+              [ -f "dist/$asset" ] && files="$files dist/$asset"
+            done
+            [ -n "$files" ] || return 0
+            if gh release view "$rel" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+              # shellcheck disable=SC2086
+              gh release upload "$rel" --repo "$GITHUB_REPOSITORY" --clobber $files
+            else
+              # shellcheck disable=SC2086
+              gh release create "$rel" \
+                --repo "$GITHUB_REPOSITORY" \
+                --target "$GITHUB_SHA" \
+                --latest=false \
+                --title "$rel" \
+                --notes "Slot payload pinned by deploy/payload.json, mirrored from ${UPSTREAM} and verified against every pinned size and sha256." \
+                $files
+            fi
+            gh release view "$rel" --repo "$GITHUB_REPOSITORY" --json tagName,assets \
+              --jq '"\(.tagName): \(.assets | map(select(.state == "uploaded")) | length) assets uploaded"'
+          }
+          # shellcheck disable=SC2086
+          publish "$RELEASE" $MAIN_MISSING
+          if [ "$CRAG_RELEASE" != "$RELEASE" ]; then
+            # shellcheck disable=SC2086
+            publish "$CRAG_RELEASE" $CRAG_MISSING
           fi
-          gh release view "$RELEASE" --repo "$GITHUB_REPOSITORY"
