@@ -6,6 +6,7 @@
  *   { ok: false, error: { type, code, message, ... } }
  */
 
+import { hostMemoryPressureOf, LOCAL_HOST_KEY } from '../cluster/host-memory-pressure.mjs'
 import { THINKING_DISPLAY_MODES } from '../protocol/thinking.mjs'
 import { normalizeRedaction } from '../redaction/policy.mjs'
 import { redactionStatus } from '../redaction/runtime.mjs'
@@ -55,6 +56,7 @@ import { guardUsageTier, inferClaudeTier } from '../pool/claude-tier.mjs'
 import { listQuotaFromHeaders, isOfficialWindowLimited } from '../pool/quota-window.mjs'
 import { lastClosedWindow } from '../pool/window-history.mjs'
 import { hardBlockOf } from '../pool/rate-limit-service.mjs'
+import { kernelFaults } from '../transport/rust-kernel-client.mjs'
 import { unitCircuit } from '../pool/unit-circuit.mjs'
 import { accountIdOf, normalizePoolRouting } from '../pool/pool-scheduler.mjs'
 import { codexMaxSessions, codexScheduleLevel } from '../pool/codex-slot-pool.mjs'
@@ -104,7 +106,7 @@ import { effectiveOpenAIPolicy, normalizeOpenAIQuotaPolicy } from '../pool/opena
 import { openAIRuntimeSignals } from '../pool/openai-account-runtime.mjs'
 import { normalizeVmConfig, memoryMiB } from '../vm/machine-spec.mjs'
 import { runtimeKind } from '../vm/runtime-kind.mjs'
-import { telemetryUploadInterval } from '../vm/native-telemetry.mjs'
+import { telemetryDefaultEnabled, telemetryUploadInterval } from '../vm/native-telemetry.mjs'
 
 export function ok(data, meta) {
   const out = { ok: true, data }
@@ -924,7 +926,9 @@ export async function buildVmDetail({
       }
     }
   }
-  const processStatus = gpt ? null : await slotProcessStatus({ projectRoot: cfg.paths.project, vm })
+  const processStatus = gpt
+    ? null
+    : await slotProcessStatus({ projectRoot: cfg.paths.project, vm, routing: routingConfig })
   const activeEngine = gpt ? null : rustHealth?.reachable ? 'rust' : null
   return ok({
     vm: summary,
@@ -1557,7 +1561,10 @@ export function buildRouting({ routingConfig, stickyRouter }) {
     usage_probe: normalizeUsageProbeConfig(routingConfig?.usage_probe),
     notify: publicNotifyConfig(routingConfig?.notify),
     vm: normalizeVmConfig(routingConfig?.vm),
-    telemetry: { upload_interval_seconds: telemetryUploadInterval(routingConfig) },
+    telemetry: {
+      upload_interval_seconds: telemetryUploadInterval(routingConfig),
+      default_enabled: telemetryDefaultEnabled(routingConfig),
+    },
     redaction: normalizeRedaction(routingConfig?.redaction),
     redaction_runtime: redactionStatus(),
     sessions: stickyRouter.stats(),
@@ -1644,7 +1651,19 @@ function hostStats() {
     heap_total: mem.heapTotal,
     uptime: os.uptime(),
     proc_uptime: process.uptime(),
+    memory_pressure: hostMemoryPressureOf(LOCAL_HOST_KEY),
   }
+}
+
+/** The 'usage credits required' Fable marker while its routing block lasts. */
+function activeFableCreditsRequired(unified, now = Date.now()) {
+  const mark = unified?.fable_credits_required
+  if (!mark) return null
+  const until = Date.parse(mark.until || '')
+  if (!Number.isFinite(until) || until <= now) return null
+  const deniedUntil = Number(unified.model_denied_until?.[mark.model]) || 0
+  if (deniedUntil <= now) return null
+  return { model: mark.model || null, at: mark.at || null, until: mark.until }
 }
 
 export function quotaFromAccount(acc, quotaConfig) {
@@ -1699,6 +1718,7 @@ export function quotaFromAccount(acc, quotaConfig) {
     account_tier: u.account_tier || null,
     account_tier_source: u.account_tier_source || null,
     usage_has_fable: u.usage_has_fable ?? null,
+    fable_credits_required: activeFableCreditsRequired(u),
   }
   const cfg = weeklySplitConfig(quotaConfig || {})
   const split = publicWeeklySplit(
@@ -1996,6 +2016,11 @@ function enrichVm(v, accountQuota, active, extras = {}) {
     v.cooldown_until ||
     availability.until ||
     null
+  // 内核故障（watchdog 恢复预算耗尽）只在内存里：调度器跳过该槽，但列表/
+  // 卡片如果只看持久化字段，一台内核已死的槽仍显示「开 · 可用」。这里把
+  // fault 抬进受限归因，让面板与调度器看到同一台坏槽。Stronger verdicts
+  // (revoke, unschedulable, off) already win inside resolveScheduleState.
+  const kernelFault = kernelFaults.get(v.id) || null
   const restrictionReason =
     liveHardBlock?.reason ||
     runtime?.cooldown_reason ||
@@ -2011,6 +2036,7 @@ function enrichVm(v, accountQuota, active, extras = {}) {
     availability,
     restrictionUntil,
     restrictionReason,
+    kernelFaulted: !!kernelFault,
     circuit,
     seats: isCodex ? null : { used: Number(seatRow?.seats_used) || 0, max: seatsMax },
     sessions: isCodex ? { active: codexSessions?.active, max: codexSessions?.max } : null,
@@ -2154,6 +2180,9 @@ function enrichVm(v, accountQuota, active, extras = {}) {
     subscription_type: isCodex ? null : v.subscription_type || null,
     rate_limit_tier: isCodex ? null : v.rate_limit_tier || null,
     usage_has_fable: isCodex ? null : q.usage_has_fable,
+    fable_credits_required: isCodex ? null : q.fable_credits_required || null,
+    // pool.fable_requires_max: this slot never gets Fable because it is not Max.
+    fable_requires_max: !isCodex && extras.routingConfig?.pool?.fable_requires_max === true && tierKey !== 'max',
     availability,
     cred_status: credStatusFromAvailability(availability),
     cooldown_until: Number(restrictionUntil) > Date.now() ? Number(restrictionUntil) : null,
@@ -2556,6 +2585,7 @@ function applyCostFields(target, cost, { coveredSince = null } = {}) {
   target.window_7d_success = cost?.window_7d_success || 0
   target.window_7d_errors = cost?.window_7d_errors || 0
   target.window_7d_tokens = cost?.window_7d_tokens || 0
+  target.health_24h = Array.isArray(cost?.health_24h) ? cost.health_24h : null
   Object.assign(target, windowEstimates(target, cost, coveredSince, isCodexVm(target)))
 }
 

@@ -1,5 +1,5 @@
 /**
- * Request logging — sub2api UsageLog + access-log inspired (SQLite-backed).
+ * SQLite-backed request logs for access, usage, and billing.
  *
  * Modes:
  *   off    — no writes
@@ -549,6 +549,14 @@ export class RequestLogStore {
       model: extra.model || null,
       stream: !!extra.stream,
       status: extra.status ?? null,
+      upstream_status: extra.audit_upstream_400
+        ? 400
+        : Number(extra.upstream_status) === 400
+          ? null
+          : (extra.upstream_status ?? null),
+      upstream_400_message: extra.audit_upstream_400_message
+        ? String(extra.audit_upstream_400_message).slice(0, 300)
+        : null,
       duration_ms,
       api_key_kind: extra.api_key_kind || null,
       api_key_id: extra.api_key_id || null,
@@ -592,7 +600,7 @@ export class RequestLogStore {
       image_usage: extra.image_usage ? JSON.stringify(extra.image_usage) : null,
       image_input_tokens: imageTokenCount(extra.image_usage?.input_tokens),
       image_output_tokens: imageTokenCount(extra.image_usage?.output_tokens),
-      // sub2api ownership + billing columns
+      // Ownership and billing columns
       user_id: extra.user_id ?? null,
       vm_owner_user_id: null,
       group_id: extra.group_id ?? 1,
@@ -600,7 +608,7 @@ export class RequestLogStore {
       ...costColumnsForLog(billedUsage, extra.upstream_model || extra.model || extra.requested_model, extra),
       upstream_service_tier: extra.upstream_service_tier || null,
     }
-    // sub2api actual_cost: official cost × group rate multiplier (0 is a valid rate)
+    // Unless supplied, actual_cost is the official cost × group rate (0 is valid).
     if (summary.total_cost != null) {
       summary.actual_cost = extra.actual_cost ?? summary.total_cost * summary.rate_multiplier
     }
@@ -626,7 +634,6 @@ export class RequestLogStore {
             : null,
         hop_meta: extra.hop_meta || null,
         via: extra.via || extra.hop_meta?.via || null,
-        upstream_status: extra.upstream_status ?? null,
         outbound_summary: extra.outbound_summary || null,
         cache_prefix: extra.cache_prefix || null,
         cache_continuity: extra.cache_continuity || null,
@@ -718,6 +725,14 @@ export class RequestLogStore {
 
   billingStats(opts = {}) {
     return this.repo.billingStats(opts)
+  }
+
+  healthBuckets(opts = {}) {
+    return this.repo.healthBuckets(opts)
+  }
+
+  topErrors(opts) {
+    return this.repo.topErrors(opts)
   }
 
   ownerBilling(opts = {}) {

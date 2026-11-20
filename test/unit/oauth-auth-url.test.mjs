@@ -53,7 +53,7 @@ test('Claude Code flavors cannot create a separate panel PKCE session', () => {
   }
 })
 
-test('generateAuthUrl setup_token uses full scope on CAI but keeps setup-token flavor', () => {
+test('generateAuthUrl setup_token mints an inference-only token on the CLI consent page', () => {
   resetAuthUrlSessions()
   const spec = OAUTH_FLAVORS.setup_token
   const out = generateAuthUrl({
@@ -63,15 +63,17 @@ test('generateAuthUrl setup_token uses full scope on CAI but keeps setup-token f
   })
   assert.equal(out.flavor, 'setup_token')
   assert.match(out.auth_url, /^https:\/\/claude\.com\/cai\/oauth\/authorize\?code=true/)
-  assert.ok(out.auth_url.includes(encodeURIComponent(spec.scope).replace(/%20/g, '+')))
-  assert.ok(out.auth_url.includes('user%3Aprofile'))
+  // `claude setup-token` authorizes `inferenceOnly`, not the full login set.
+  assert.equal(spec.scope, 'user:inference')
+  assert.ok(out.auth_url.includes(encodeURIComponent('user:inference')))
+  assert.equal(out.auth_url.includes('user%3Aprofile'), false)
   const session = peekAuthUrlSession(out.session_id)
   assert.equal(session.flavor, 'setup_token')
   assert.equal(session.scope, spec.scope)
   assert.equal(session.source, 'oauth-setup-token')
 })
 
-test('buildAuthorizationURL matches sub2api parameter order', () => {
+test('buildAuthorizationURL starts with code, client_id, and response_type in order', () => {
   const url = buildAuthorizationURL('st', 'ch')
   assert.ok(url.startsWith(`${AUTHORIZE_URL}?code=true&client_id=${CLIENT_ID}&response_type=code`))
 })

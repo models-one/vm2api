@@ -66,7 +66,16 @@ import {
   type DeleteActiveVmPlan,
 } from '@/features/vm/active-vm'
 import { ActiveVmBadge } from '@/features/vm/active-vm-badge'
-import { DeleteActiveVmHint } from '@/features/vm/delete-active-hint'
+import {
+  DeleteActiveVmHint,
+  NodeGoneDeleteOption,
+} from '@/features/vm/delete-active-hint'
+import {
+  completeVmDeletion,
+  useNodeGone,
+  vmDeletePath,
+  type VmDeleteResult,
+} from '@/features/vm/delete-vm'
 import { VmAccountTab } from '@/features/vm/detail-account-tab'
 import { VmOpsTab } from '@/features/vm/detail-ops-tab'
 import { VmOverviewTab } from '@/features/vm/detail-overview-tab'
@@ -91,6 +100,7 @@ import { SeedPolicyCard } from '@/features/vm/seed-policy-card'
 import { seedSaveState } from '@/features/vm/seed-settings'
 import { usePoolSeatStream } from '@/features/vm/use-pool-seat-stream'
 import { useVmTestChat } from '@/features/vm/use-vm-test-chat'
+import { VmDesktopCard } from '@/features/vm/vm-desktop-card'
 import { VmNameField } from '@/features/vm/vm-name-field'
 import {
   pickBindTarget,
@@ -152,18 +162,25 @@ function VmDetailBody({
     enabled: perms.admin && wantedTab === 'seed',
     refetchInterval: wantedTab === 'seed' ? 2000 : false,
   })
+  const cragTelemetry =
+    detail.data?.kernel?.telemetry?.state === 'launch_policy' ||
+    detail.data?.vm?.resolved_dataplane === 'crag'
   const seedUploadLog = useQuery({
     ...vmSeedUploadLogQueryOptions(id),
-    enabled: perms.admin && wantedTab === 'seed' && seedDebug,
+    enabled: perms.admin && wantedTab === 'seed' && seedDebug && !cragTelemetry,
     refetchInterval: seedDebug && wantedTab === 'seed' ? 2000 : false,
   })
   usePoolSeatStream()
 
-  const tabs = vmDetailTabs(perms)
+  // 桌面依赖槽容器：Codex 槽没有容器，不显示该页签。
+  const tabs = vmDetailTabs(perms).filter(
+    (t) => t !== 'desktop' || (!!detail.data?.vm && !isCodexVm(detail.data.vm))
+  )
   const tab = visibleTab(wantedTab, tabs)
 
   const [bindId, setBindId] = useState('')
   const [confirmDel, setConfirmDel] = useState(false)
+  const [forceDel, setForceDel] = useState(false)
   const [confirmReset, setConfirmReset] = useState(false)
   const [resetMode, setResetMode] = useState<'keep' | 'traits'>('keep')
   const [resetInput, setResetInput] = useState('')
@@ -321,25 +338,27 @@ function VmDetailBody({
     },
   })
   const deletePlan: DeleteActiveVmPlan = planDeleteActiveVm(vm, slotList)
+  const nodeGone = useNodeGone(confirmDel ? vm : null)
   const remove = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (force: boolean) => {
       if (deletePlan.kind === 'switch') {
         await api(
           `/api/panel/vms/${encodeURIComponent(deletePlan.replacement.id)}/activate`,
           { method: 'POST' }
         )
       }
-      return api(`/api/panel/vms/${encodeURIComponent(id)}`, {
+      return api<VmDeleteResult>(vmDeletePath(id, force), {
         method: 'DELETE',
       })
     },
-    onSuccess: async () => {
-      toast.success(
+    onSuccess: async (data) => {
+      await completeVmDeletion(
+        qc,
+        data,
         deletePlan.kind === 'switch'
           ? `已切换活跃到 ${deletePlan.replacement.id} 并删除 ${id}`
           : '已删除'
       )
-      await qc.invalidateQueries({ queryKey: dashboardQueryOptions().queryKey })
       navigate({ to: '/vm' })
     },
     onError: (error: Error) => toast.error(error.message),
@@ -525,6 +544,9 @@ function VmDetailBody({
             {tabs.includes('ops') ? (
               <TabsTrigger value='ops'>运维</TabsTrigger>
             ) : null}
+            {tabs.includes('desktop') ? (
+              <TabsTrigger value='desktop'>桌面</TabsTrigger>
+            ) : null}
             {tabs.includes('seed') ? (
               <TabsTrigger value='seed'>种子</TabsTrigger>
             ) : null}
@@ -670,6 +692,11 @@ function VmDetailBody({
                 }}
                 onDelete={() => setConfirmDel(true)}
               />
+              {tabs.includes('desktop') ? (
+                <TabsContent value='desktop' className='pt-4'>
+                  <VmDesktopCard vm={vm} />
+                </TabsContent>
+              ) : null}
               <TabsContent value='seed' className='pt-4'>
                 {seed.data ? (
                   <SeedPolicyCard
@@ -677,6 +704,7 @@ function VmDetailBody({
                     seed={seed.data}
                     slot={seedSlot}
                     telemetry={kernel?.telemetry}
+                    cragTelemetry={cragTelemetry}
                     saving={saveSeed.isPending}
                     readError={seed.isError ? seed.error.message : null}
                     debug={seedDebug}
@@ -700,7 +728,10 @@ function VmDetailBody({
         </Tabs>
         <ConfirmDialog
           open={confirmDel}
-          onOpenChange={setConfirmDel}
+          onOpenChange={(open) => {
+            setConfirmDel(open)
+            if (!open) setForceDel(false)
+          }}
           title={`删除 ${id}`}
           desc={
             <>
@@ -715,10 +746,16 @@ function VmDetailBody({
           isLoading={remove.isPending}
           handleConfirm={() => {
             if (!remove.isPending && deletePlan.kind !== 'blocked') {
-              remove.mutate()
+              remove.mutate(forceDel && !!nodeGone)
             }
           }}
-        />
+        >
+          <NodeGoneDeleteOption
+            gone={nodeGone}
+            checked={forceDel}
+            onCheckedChange={setForceDel}
+          />
+        </ConfirmDialog>
         <ConfirmDialog
           open={confirmReset}
           onOpenChange={(open) => {

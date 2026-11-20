@@ -20,27 +20,39 @@ const messages = {
   crag_subscription_json_required: 'Expected application/json.',
   crag_subscription_invalid_request: 'Invalid host subscription request.',
   crag_subscription_body_too_large: 'Host subscription request is too large.',
+  crag_subscription_host_identity_unavailable: 'Provide a readable host identity before retrying.',
+  crag_subscription_host_identity_changed: 'Restore the original host identity before retrying.',
+  crag_subscription_storage_unavailable: 'Check the host subscription data directory before retrying.',
   crag_subscription_host_package_unready: 'Install or restore the trusted CRAG host package before retrying.',
+  auth_forbidden:
+    'The authorization service rejected this host request. Contact the administrator with the request ID; do not reset the host credential.',
   vm_not_found: 'VM not found.',
   crag_subscription_failed: 'The host subscription operation failed. Refresh its status before retrying.',
 }
 
 export function createCragSubscriptionHandler({ subscription, getVm, publicBaseUrl, json, readRawBody }) {
-  const reject = (res, status, code) =>
+  const reject = (res, status, code, authorityRequestId) =>
     json(res, status, {
       ok: false,
-      error: { code, message: Object.hasOwn(messages, code) ? messages[code] : messages.crag_subscription_failed },
+      error: {
+        code,
+        message: Object.hasOwn(messages, code) ? messages[code] : messages.crag_subscription_failed,
+        ...(authorityRequestId && { details: { authority_request_id: authorityRequestId } }),
+      },
     })
   const ok = (res, data) => json(res, 200, { ok: true, data })
 
   return async (req, res, { action, id }) => {
     res.setHeader('Cache-Control', 'no-store')
     const identity = panelIdentity(req)
-    if (req.apiKeyKind || !identity.user || identity.role !== 'admin') return reject(res, 403, 'forbidden')
+    // The master API key is the operator's own automation (seat binding for new slots); it is not a browser
+    // session, so the same-origin CSRF guard does not apply to it.
+    const master = req.apiKeyKind === 'master'
+    if (!master && (req.apiKeyKind || !identity.user || identity.role !== 'admin')) return reject(res, 403, 'forbidden')
 
     let body
     if (action !== 'status') {
-      if (!sameOriginPost(req, publicBaseUrl)) return reject(res, 403, 'crag_subscription_origin_denied')
+      if (!master && !sameOriginPost(req, publicBaseUrl)) return reject(res, 403, 'crag_subscription_origin_denied')
       if (!/^application\/json(?:\s*;|$)/i.test(req.headers['content-type'] || '')) {
         return reject(res, 415, 'crag_subscription_json_required')
       }
@@ -81,7 +93,7 @@ export function createCragSubscriptionHandler({ subscription, getVm, publicBaseU
       ) {
         return reject(res, 500, 'crag_subscription_failed')
       }
-      return reject(res, error.status === 401 ? 502 : error.status, error.code)
+      return reject(res, error.status === 401 ? 502 : error.status, error.code, error.authorityRequestId)
     }
   }
 }

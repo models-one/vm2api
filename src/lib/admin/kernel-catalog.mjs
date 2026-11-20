@@ -33,22 +33,84 @@ const MAX_ARCHIVE = MAX_CRAG_V2_DOWNLOAD_BYTES
 const MAX_EXPANDED = 768 * 1024 * 1024
 const MAX_MEMBERS = 64
 const verificationCache = new Map()
-const installingCaches = new Set()
+const installingCaches = new Map()
 const coded = (code, message) => Object.assign(new Error(message), { code })
 const baseFor = (root, kernel) =>
   kernel === 'crag' ? path.join(root, 'share/crag/kernels/v2') : path.join(root, 'share/wrap-cli-releases')
 const archFor = (kernel) => (kernel === 'crag' ? cragV2Arch() : 'amd64')
 const CRAG_PINNED_RELEASES = [
   {
+    tag: 'payload-2026.11.20-crag-3.1.10',
+    label: '3.1.10 遥测修复',
+    size: 171058868,
+    manifestSha256: '1e78af225e07e2b4adf0ba6074f32c313b725f5a15ae7156735622bf5ecbd71b',
+    sha256: 'faafd0011dbfd8d4d136eaf3056b57520d5e00777f37bd2d864edc81b4c49026',
+  },
+  {
+    tag: 'payload-2026.11.20-crag-3.1.9',
+    label: '3.1.9 子代理槽位调度',
+    size: 170999424,
+    manifestSha256: 'aa67bb6214d3931a73cfbcfcdb8327d510cacb7ed8a83c006464a41563fa6c2c',
+    sha256: '68fe21ab5f1f19cb3482749a63a37d71328eaad967ede3ccff03337a54291614',
+  },
+  {
+    tag: 'payload-2026.11.20-crag-3.1.8',
+    label: '3.1.8 账号变更续接恢复',
+    size: 170992580,
+    manifestSha256: '8efbbf765967631a5c5d1f1c809f34264c1acd945b08db61d0aecbbf9ca93822',
+    sha256: '890b7d5bbfbac5ad4d1c01a70df0f549ce2e739d3a5f2d52c2954a8ba95e7c87',
+  },
+  {
+    tag: 'payload-2026.11.19-crag-3.1.7',
+    label: '3.1.7 固定 CLI 入口',
+    size: 171009876,
+    manifestSha256: '2bd7ce44f2dcabc6f0b08a4561966f5c5e17a8ae3b8c3e91c635b509c1573ec7',
+    sha256: '9a2866473b0a8be9cd64be6f00dab41aa8e2b8310ab0899613cdfdd99cf34911',
+  },
+  {
+    tag: 'payload-2026.11.18-crag-3.1.6',
+    label: '3.1.6 原生遥测控制',
+    size: 170991467,
+    manifestSha256: 'f1e687b7d256afee53438a4ce35c75b08851c57460065fbf20995cda36fe5aac',
+    sha256: '6846f67eb52c12d35514ec7d51a77b4ab9526368a2d4f1c701ca2517374ace92',
+  },
+  {
+    tag: 'payload-2026.11.18-crag-3.1.5',
+    label: '3.1.5 标准版',
+    size: 170849999,
+    manifestSha256: '62a1ba1a006d011e07fc62fa1e1ee4950cd498d6be8ec3cc19358025c08471ec',
+    sha256: '931f1eb0e0dc5cce9b0cd80f68fd818772d5db9b710e66c204b75a003daeb1b5',
+  },
+  {
+    tag: 'payload-2026.11.17-crag-3.1.4',
+    label: '3.1.4 标准版',
+    size: 170833337,
+    manifestSha256: '67224bbec4d1db42b7c446b22a674702d41d2ed0aaf61f26ab60764a5085a235',
+    sha256: '295e40ba1b1830c0e8b58540d96633b1aa6f2c52f6a437c09e6c976d9f21238c',
+  },
+  {
+    tag: 'payload-2026.11.17-crag-3.1.3',
+    label: '3.1.3 Compact 修复版',
+    size: 170786978,
+    manifestSha256: 'b96330de47eac3e6977f419db9387ffa2346a4c394af09b680025f5d2d2691ad',
+    sha256: '49d87f716494d5ef8eeac8e579c88ac2a5d6971cf30341df50e4ae6a4526e6a6',
+  },
+  {
+    tag: 'payload-2026.11.16-crag-3.1.3',
+    label: '3.1.3（原发行）',
+    size: 170914192,
+    manifestSha256: '6c9273c7629d3f017c361df1000766b89e10eabd3e18db41aae66060bd3316d2',
+    sha256: '2643dd84b8dd641645aff692983f2825d043264590844d520aefe293150c08b9',
+  },
+  {
     tag: 'payload-2026.11.16-crag-3.1.2',
-    label: '3.1.2 标准版',
+    label: '3.1.2',
     size: 170881721,
     manifestSha256: 'e5c65d050b322f907518943ad6340330a51e0b7f2aa97c459fab49a10c120067',
     sha256: '74e9ba52f18a52126fe61a3d95a89fe854972387459aed1def83bf3714cba8c3',
   },
   {
     tag: 'payload-2026.11.16-crag-3.1.2-legacy',
-    label: '3.1.2 旧授权兼容版',
     size: 170897634,
     manifestSha256: 'c38f0dece88c0ada665c544f0c16d4295784e7b230de316ea6297532b4abca61',
     sha256: '29035f48824ff83d1e9fbfb84a9236e245938387c7f39d4ff9c4ffff7d9a770b',
@@ -127,11 +189,18 @@ const CRAG_PINNED_RELEASES = [
   },
 ]
 
+/**
+ * One installer per kernel cache. The release only clears its own reservation, so a
+ * forced cancel can free the cache early without a late `finally` freeing the next one.
+ */
 export function reserveKernelInstallCache(projectRoot, kernel) {
   const key = path.resolve(baseFor(projectRoot, kernel))
   if (installingCaches.has(key)) return null
-  installingCaches.add(key)
-  return () => installingCaches.delete(key)
+  const token = Symbol(key)
+  installingCaches.set(key, token)
+  return () => {
+    if (installingCaches.get(key) === token) installingCaches.delete(key)
+  }
 }
 
 function ensureKernelCacheNotInstalling(base) {
@@ -528,16 +597,214 @@ function removeStaged(root) {
     if (entry.isDirectory()) removeStaged(path.join(root, entry.name))
   fs.rmSync(root, { recursive: true, force: true })
 }
-// Keep the current and immediately preceding snapshot, not an ever-growing
-// download history. Cleanup is post-commit and can never turn success into an error.
-function prunePackages(base, arch, current, previous) {
+// The cache keeps one package per release
+// (payload_tag for CRAG, tag for cli-node), up to MAX_CACHED_RELEASES, so slots can
+// be installed with different versions side by side. `current-<arch>.json` still
+// names the one package installs and materialization read; selectKernelRelease
+// repoints it to an already cached package without downloading again.
+const MAX_CACHED_RELEASES = 6
+const releaseKey = (release) => release?.payload_tag || release?.tag || ''
+const packageName = (arch) => new RegExp(`^packages/${arch}-[a-f0-9-]{36}$`)
+function readPointer(base, arch) {
   try {
-    for (const entry of fs.readdirSync(path.join(base, 'packages'), { withFileTypes: true })) {
-      if (!entry.isDirectory() || !new RegExp(`^${arch}-[a-f0-9-]{36}$`).test(entry.name)) continue
+    const value = jsonFile(path.join(base, `current-${arch}.json`), 4096)
+    return packageName(arch).test(value?.package) ? value : null
+  } catch {
+    return null
+  }
+}
+// Infer a release for a package directory written before the index existed.
+function inferRelease(base, kernel, relative) {
+  const root = path.join(base, relative)
+  try {
+    if (kernel === 'crag') {
+      const sha = crypto
+        .createHash('sha256')
+        .update(fs.readFileSync(path.join(root, 'manifest.json')))
+        .digest('hex')
+      const known = CRAG_PINNED_RELEASES.find((entry) => entry.manifestSha256 === sha)
+      if (!known) return null
+      const version = /-crag-(\d+\.\d+\.\d+)$/.exec(known.tag)?.[1]
+      return {
+        ...(version ? { tag: `v${version}`, version } : {}),
+        asset: CRAG_V2_RELEASE_ASSET,
+        payload_tag: known.tag,
+      }
+    }
+    const meta = jsonFile(path.join(root, 'RELEASE.json'))
+    const { updated_at, ...release } = meta
+    return release.tag ? release : null
+  } catch {
+    return null
+  }
+}
+/** Cached releases, newest first. Entries whose package directory vanished are dropped. */
+function cachedReleases(base, kernel) {
+  const arch = archFor(kernel)
+  const index = path.join(base, `releases-${arch}.json`)
+  let rows = null
+  try {
+    const value = jsonFile(index, 64 * 1024)
+    if (Array.isArray(value?.releases)) rows = value.releases
+  } catch {}
+  if (!rows) {
+    rows = []
+    const pointer = readPointer(base, arch)
+    if (pointer)
+      rows.push({
+        package: pointer.package,
+        release: pointer.release || {},
+        updated_at: pointer.updated_at,
+      })
+    try {
+      for (const entry of fs.readdirSync(path.join(base, 'packages'), {
+        withFileTypes: true,
+      })) {
+        const relative = `packages/${entry.name}`
+        if (!entry.isDirectory() || !packageName(arch).test(relative) || relative === pointer?.package) continue
+        const release = inferRelease(base, kernel, relative)
+        if (release) {
+          const updated_at = fs.statSync(path.join(base, relative)).mtime.toISOString()
+          rows.push({ package: relative, release, updated_at })
+        }
+      }
+    } catch {}
+  }
+  const seen = new Set()
+  return rows
+    .filter((row) => packageName(arch).test(row?.package) && fs.existsSync(path.join(base, row.package)))
+    .sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')))
+    .filter((row) => {
+      const key = releaseKey(row.release) || row.package
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+}
+function writeReleaseIndex(base, kernel, rows) {
+  const file = path.join(base, `releases-${archFor(kernel)}.json`)
+  const tmp = `${file}.${crypto.randomUUID()}.tmp`
+  try {
+    fs.writeFileSync(tmp, JSON.stringify({ releases: rows }), {
+      flag: 'wx',
+      mode: 0o644,
+    })
+    fs.renameSync(tmp, file)
+  } catch {
+    fs.rmSync(tmp, { force: true })
+  }
+}
+// Post-commit cleanup: index the new package, keep one package per release up to
+// MAX_CACHED_RELEASES (never evicting the current one), remove unindexed packages.
+// It can never turn success into an error.
+function prunePackages(base, kernel, current, added) {
+  try {
+    const arch = archFor(kernel)
+    const rows = cachedReleases(base, kernel).filter((row) => row.package !== added.package)
+    const addedKey = releaseKey(added.release)
+    let keep = [added, ...rows.filter((row) => !addedKey || releaseKey(row.release) !== addedKey)]
+    while (keep.length > MAX_CACHED_RELEASES) {
+      const victim = keep.findLastIndex((row) => row.package !== current)
+      if (victim < 0) break
+      keep.splice(victim, 1)
+    }
+    writeReleaseIndex(base, kernel, keep)
+    const kept = new Set([current, ...keep.map((row) => row.package)])
+    for (const entry of fs.readdirSync(path.join(base, 'packages'), {
+      withFileTypes: true,
+    })) {
       const relative = `packages/${entry.name}`
-      if (relative !== current && relative !== previous) removeStaged(path.join(base, relative))
+      if (!entry.isDirectory() || !packageName(arch).test(relative)) continue
+      if (!kept.has(relative)) removeStaged(path.join(base, relative))
     }
   } catch {}
+}
+
+/** Releases held in the local cache, newest first, with the one installs currently use marked. */
+export function listKernelReleases(projectRoot, kernel) {
+  if (!['cli-node', 'crag'].includes(kernel))
+    return {
+      ok: false,
+      code: 'kernel_invalid',
+      error: '请选择 cli-node 或 CRAG',
+    }
+  const base = baseFor(projectRoot, kernel)
+  const current = readPointer(base, archFor(kernel))?.package
+  return {
+    ok: true,
+    releases: cachedReleases(base, kernel).map((row) => ({
+      ...(isReleaseTag(row.release?.tag) ? { tag: row.release.tag } : {}),
+      ...(typeof row.release?.version === 'string' ? { version: row.release.version } : {}),
+      ...(row.release?.payload_tag ? { payload_tag: row.release.payload_tag } : {}),
+      updated_at: row.updated_at || null,
+      current: row.package === current,
+    })),
+  }
+}
+
+/** Repoint the install selection at an already cached release (payload_tag or tag). No download. */
+export function selectKernelRelease(projectRoot, { kernel, tag } = {}) {
+  if (!['cli-node', 'crag'].includes(kernel))
+    return {
+      ok: false,
+      code: 'kernel_invalid',
+      error: '请选择 cli-node 或 CRAG',
+    }
+  if (typeof tag !== 'string' || !tag || tag.length > 120)
+    return {
+      ok: false,
+      code: 'kernel_tag_invalid',
+      error: '请指定要切换的版本',
+    }
+  let lock, pointerTemp
+  try {
+    if (String(process.env[kernel === 'crag' ? 'KIN_CRAG_V2_ROOT' : 'KIN_WRAP_CLI_ROOT'] || '').trim())
+      throw coded('kernel_override_active', '已配置显式内核路径，请先移除覆盖配置再切换')
+    const base = baseFor(projectRoot, kernel)
+    const arch = archFor(kernel)
+    lock = acquireKernelCacheLock(projectRoot, kernel)
+    const rows = cachedReleases(base, kernel)
+    const row = rows.find((entry) => entry.release?.payload_tag === tag || entry.release?.tag === tag)
+    if (!row) throw coded('kernel_release_not_cached', `本机缓存里没有 ${tag}，请先拉取`)
+    if (kernel === 'crag' && !verifiedPackage(path.join(base, row.package)).ok)
+      throw coded('crag_v2_package_changed', 'CRAG 缓存包校验失败，请重新拉取')
+    ensureKernelCacheNotInstalling(base)
+    const pointer = path.join(base, `current-${arch}.json`)
+    const updated_at = new Date().toISOString()
+    pointerTemp = `${pointer}.${crypto.randomUUID()}.tmp`
+    fs.writeFileSync(
+      pointerTemp,
+      JSON.stringify({
+        package: row.package,
+        release: row.release,
+        updated_at,
+      }),
+      {
+        flag: 'wx',
+        mode: 0o644,
+      },
+    )
+    fs.renameSync(pointerTemp, pointer)
+    pointerTemp = null
+    // Persist the inferred index so later pulls never mistake cached releases for strays.
+    writeReleaseIndex(base, kernel, rows)
+    return {
+      ok: true,
+      kernel: publicProduct(kernel, true, { ...row.release, updated_at }),
+      release: row.release,
+    }
+  } catch (error) {
+    const code =
+      typeof error.code === 'string' && /^[a-z][a-z0-9_]+$/.test(error.code) ? error.code : 'kernel_select_failed'
+    return { ok: false, code, error: error.message || '切换内核版本失败' }
+  } finally {
+    if (pointerTemp) fs.rmSync(pointerTemp, { force: true })
+    if (lock) {
+      try {
+        fs.rmdirSync(lock)
+      } catch {}
+    }
+  }
 }
 
 function pinnedAuthority(projectRoot) {
@@ -618,16 +885,41 @@ export async function pullKernelRelease(
     } else {
       const pin = CRAG_PINNED_RELEASES.find((entry) => entry.tag === release.payload_tag)
       if (pin && specs[0].size !== pin.size) throw coded('kernel_size_mismatch', 'CRAG 发行包大小不匹配')
+      const standard = releasePayload(projectRoot)?.crag_authorization
+      const remoteDigest = payload.assets.find((asset) => asset?.name === CRAG_V2_RELEASE_ASSET)?.digest
+      const sha256 =
+        pin?.sha256 ||
+        (typeof remoteDigest === 'string' && /^sha256:[a-f0-9]{64}$/.test(remoteDigest) ? remoteDigest.slice(7) : '')
+      if (standard && !sha256) throw coded('crag_v2_digest_missing', 'CRAG 发行未提供可信归档摘要')
       const response = await openKernelReleaseAsset(specs[0].url, fetchImpl, CRAG_V2_RELEASE_ASSET)
       await pipeline(
         responseBody(response, MAX_ARCHIVE, 'crag_v2_too_large'),
-        limitBytes(MAX_ARCHIVE, 'crag_v2_too_large', specs[0].size, pin?.sha256),
+        limitBytes(MAX_ARCHIVE, 'crag_v2_too_large', specs[0].size, sha256),
         createGunzip(),
         limitBytes(MAX_EXPANDED, 'crag_v2_archive_invalid'),
         new PackageTar(stage),
       )
       const verified = verifyCragV2Tree(stage)
       if (!verified.ok) throw coded(verified.code, 'CRAG 签名加密包校验失败')
+      const { manifest } = verified
+      if (
+        pin &&
+        crypto
+          .createHash('sha256')
+          .update(fs.readFileSync(path.join(stage, 'manifest.json')))
+          .digest('hex') !== pin.manifestSha256
+      ) {
+        throw coded('crag_v2_digest_mismatch', 'CRAG 签名包的 manifest 与发行记录不一致')
+      }
+      if (
+        standard &&
+        !pin &&
+        (manifest.family !== standard.family ||
+          manifest.authorization.product !== standard.product ||
+          manifest.authorization.public_key_id !== standard.issuer_public_key_id ||
+          manifest.payload.key_id !== standard.payload_key_id)
+      )
+        throw coded('crag_v2_identity_mismatch', 'CRAG 载荷不属于当前官方发行身份')
       if (!pinned(fs.readFileSync(path.join(stage, 'crag-license-public.pem')))) {
         throw coded('crag_v2_authority_mismatch', 'CRAG 发行公钥与本机可信公钥不匹配')
       }
@@ -639,10 +931,6 @@ export async function pullKernelRelease(
     fs.renameSync(stage, published)
     stage = null
     const pointer = path.join(base, `current-${archFor(kernel)}.json`)
-    let previous
-    try {
-      previous = jsonFile(pointer, 4096).package
-    } catch {}
     pointerTemp = `${pointer}.${crypto.randomUUID()}.tmp`
     fs.writeFileSync(pointerTemp, JSON.stringify({ package: relative, release, updated_at: metadata.updated_at }), {
       flag: 'wx',
@@ -652,7 +940,7 @@ export async function pullKernelRelease(
     fs.renameSync(pointerTemp, pointer)
     pointerTemp = null
     published = null
-    prunePackages(base, archFor(kernel), relative, previous)
+    prunePackages(base, kernel, relative, { package: relative, release, updated_at: metadata.updated_at })
     return { ok: true, kernel: product, release }
   } catch (error) {
     const timeout = ['TimeoutError', 'AbortError'].includes(error.name)
@@ -664,6 +952,7 @@ export async function pullKernelRelease(
     let message = 'CRAG 拉取失败；需官方签名加密发行包'
     if (code === 'crag_v2_authority_missing') message = '缺少可信 CRAG 发行公钥，请先更新到官方镜像或发行版'
     if (code === 'crag_v2_authority_mismatch') message = 'CRAG 发行公钥与本机可信公钥不匹配'
+    if (code === 'crag_v2_identity_mismatch') message = 'CRAG 载荷不属于当前官方发行身份'
     if (code === 'github_http_404') message = '所选 CRAG 发行版本未发布或不可用'
     if (code === 'crag_v2_digest_mismatch' || code === 'kernel_size_mismatch')
       message = '下载内容与所选 CRAG 发行包不匹配'

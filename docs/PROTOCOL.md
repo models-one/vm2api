@@ -25,7 +25,7 @@
 
 | 条件 | 实现 |
 |------|------|
-| UA | `^claude-cli/\d+\.\d+\.\d+`（sub2api 同款前缀；vscode / cowork / desktop 都算） |
+| UA | `^claude-cli/\d+\.\d+\.\d+`（vscode / cowork / desktop 都算） |
 | `metadata.user_id` | 合法官方 user id |
 | tools | 不能是 OpenAI `{type:function}` / `tool_choice.type=function`。`/v1/messages` 上这种 tools 会先转 Anthropic，但仍判非官方 |
 | system | 含 `x-anthropic-billing-header:`、官方 `cc_entrypoint`（`cli` / `sdk-cli` / `vscode` / `cowork` / `desktop`）、或官方身份行（含 `You are Claude Code` / `Claude Agent SDK` 变体）。`local-agent` 仅在 UA 含对应入口和 Agent SDK、平台为 `desktop_app` 且客户端版本有效时继续原有官方校验；OMP 专属特征仍优先排除 |
@@ -150,9 +150,15 @@ Rikka / 客户端 `search_web`、`scrape_web` **不是** Anthropic 自带搜索�
 
 ## 清洗与整流
 
+Claude 后端先转换 Messages、Chat Completions 或 Responses 的结构，再清洗工具与历史，最后按目标运行时能力组装。混用 OpenAI function 与 Claude 托管工具时保留后者的版本和参数；已声明原生搜索时不会用 OpenAI 搜索别名生成的默认工具替换它。根级组合 schema 只在能无损转换时改写，否则按工具字段返回 400，不会放宽原约束。
+
+`/v1/messages` 可转换混入的 Chat `tool_calls` 和 `role: tool` 历史，原生块不经 Chat 解析器。`/v1/responses` 可从 `input[].additional_tools` 读取 Codex 动态工具声明，沿用命名空间和响应名称映射；相同声明去重，冲突按原字段返回 400。Responses 中交错的并行工具历史只在调用组尚未结束、没有消息或缓存边界时归并；缺失或孤立结果不在入口伪造。
+
+CRAG 声明 `provider_managed_tools_v1` 且支持对应工具时使用独立的 provider-compat 执行路径。该路径传结构化 `system`，不传 `crag_prompt`，包括 `zero` 人设；不支持时不删除调用方的托管工具，返回可定位的能力错误。普通 CRAG 与 cli-node 的出站路径不变。
+
 `sanitizeInboundBody` / `request-rectifier`：
 
-- 非法 Anthropic `role` 按 Sub2API 清洗
+- 清洗非法 Anthropic `role`
 - 非官方补 tool 对、短签名预过滤
 - OpenAI `response_format` → `output_config`；`refusal` → `content_filter`
 - 空 refusal 记 `content_filter_refusal`
@@ -170,7 +176,7 @@ Rikka / 客户端 `search_web`、`scrape_web` **不是** Anthropic 自带搜索�
 出站前 `stripInvalidThinkingBlocks` 保留可回放的历史思维块：
 
 1. `thinking` 即使文本为空，只要有完整签名也保留；这是 `display: omitted` 的正常响应形态。
-2. Opus / Sonnet / Haiku 5.5 按 sub2api：非空且非 dummy 的签名都算有效，不看长度；`redacted_thinking` 有 `data` 就留，没有 `data` 时再看签名。历史里只要有一块无效，整段 thinking / `redacted_thinking` 都拆掉，只留正文；拆完没有内容的轮删掉。全部有效时不拆。
+2. Opus / Sonnet / Haiku 5.5：非空且非 dummy 的签名都算有效，不看长度；`redacted_thinking` 有 `data` 就留，没有 `data` 时再看签名。历史里只要有一块无效，整段 thinking / `redacted_thinking` 都拆掉，只留正文；拆完没有内容的轮删掉。全部有效时不拆。
 3. 更早的型号仍逐块过滤：签名短于 24、空签名、dummy 签名删掉，合法签名块留下。`redacted_thinking` 不看 `data`，只在签名达到 24 字符时留。
 4. 保留路径（cli-hop 首跳，以及默认 HTTP hop）不走上面的拆链，只在 `stripInvalidThinkingBlocks` 的这一支里处理：`redacted_thinking` 不看 `data` 和签名，原样留。`thinking` 只有签名可用（非空、不少于 24、非 dummy）才留，空正文也留；缺失、空、短于 24、dummy 的删掉，不再补 `signature: ""`。不走保留路径时，`redacted_thinking` 仍按上面第 2、3 条删。当前没有按账号归属过滤签名的步骤。
 
@@ -192,9 +198,9 @@ native CLI 对已有缓存 marker 的 wire system 直接保留块边界、显式
 
 ## Codex 模型与运行环境
 
-Codex 目录客户端 `auto` 跟随官方 npm 发布；网络不可用且没有缓存时使用已核实的 `0.167.1`。推理 UA 单独配置，新安装的默认画像同步到该版本，不覆盖已部署机自定义 UA。内核保留所选画像的 originator/version，忽略下游伪造的身份与设备证明头。
+Codex 目录客户端 `auto` 跟随官方 npm 发布；网络不可用且没有缓存时使用已核实的 `0.169.0`。推理 UA 单独配置，新安装的默认画像同步到该版本，不覆盖已部署机自定义 UA。内核保留所选画像的 originator/version，忽略下游伪造的身份与设备证明头。
 
-GPT 模型以账号返回的 `/backend-api/codex/models` 为准，6.2 等新增 ID 不在网关改名，也不按型号猜测能力、可用性或价格。同步发现的新 ID 沿用默认关闭，管理员启用后才调度。静态回退目录补齐官方参考目录中的 `gpt-6-astra`、`gpt-6.1-sol`、`gpt-6.1-terra` 与 `gpt-5.6-sol/terra/luna`。Responses、Chat 和 Completions 的 `ultra` 推理档位原样保留；Completions 也保留显式 `reasoning` / `reasoning_effort`。槽位测试、定时计划和日志支持该档位，具体模型是否接受由上游判断。
+GPT 模型以账号返回的 `/backend-api/codex/models` 为准，新增 ID 不在网关改名，也不按型号猜测能力、可用性或价格。静态回退目录补齐官方参考目录中的 `gpt-6.2-astra`、`gpt-6.2-sol`、`gpt-6-astra`、`gpt-6.1-sol`、`gpt-6.1-terra` 与 `gpt-5.6-sol/terra/luna`，这些 ID 默认启用，账号目录确认后立即可调度；回退目录之外、同步新发现的陌生 ID 仍默认关闭，管理员启用后才调度。回退目录的新增代次由 `gpt_model_policy.seed_version` 守护，对已同步过的实例一次性补齐，不整体合并回退目录，以免复活上游已下线的旧型号。6.2 两款尚无官方公布价目，内置价表不臆造，其用量按未计价处理。Responses、Chat 和 Completions 的 `ultra` 推理档位原样保留；Completions 也保留显式 `reasoning` / `reasoning_effort`。槽位测试、定时计划和日志支持该档位，具体模型是否接受由上游判断。
 
 `codex.analytics.enabled` 仍默认关闭。启用后的 `codex_thread_initialized` 使用当前槽内采集的系统、系统版本和架构，不读取内核所在控制面宿主。先执行槽位 `collect-identity`；数据不完整时不发送，不伪造环境或 CLI 工具事件。字段、队列和隐私边界见 [面板 API · OpenAI 传输与隐私](PANEL_API.md#openai-传输与隐私)。
 

@@ -4,7 +4,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { resolveStreamIdleTimeoutMs } from '../core/config.mjs'
 import { prepareOutboundHeaders } from '../protocol/outbound-attempt.mjs'
-import { sanitizeAnthropicBodyForBetaTokens } from '../protocol/anthropic-policy.mjs'
+import { alignSamplingWithThinking, sanitizeAnthropicBodyForBetaTokens } from '../protocol/anthropic-policy.mjs'
 import { prepareCliNodeRequest, prepareCragRequest } from '../protocol/kernel-request.mjs'
 import { withRequestProtocolBetas } from '../protocol/claude-code-betas.mjs'
 import { pinThreadBetas, rememberThreadTurn } from '../protocol/thread-betas.mjs'
@@ -28,6 +28,7 @@ import {
   REFRESH_SKEW_MS,
   writeWorkerCredentialFile,
   ensureOfficialCredentialLink,
+  slotUidGidFromHomeDir,
 } from '../oauth/oauth-credentials.mjs'
 import { runSlotOauth } from './slot-oauth.mjs'
 import { slotHost } from '../vm/slot-host.mjs'
@@ -42,9 +43,12 @@ import {
 import { applyClaudeSSELineToMessage, createClaudeMessageAssembler } from '../protocol/convert.mjs'
 import {
   clientCancelledResult,
+  ErrorCode,
+  isClaudeSlotOAuthError,
   isClientCancelledResult,
   isCompleteAssistantMessage,
   isWrapConnectionError,
+  mapUpstreamError,
 } from '../core/errors.mjs'
 import { extraHeadersFromLimitError } from '../pool/quota-window.mjs'
 import { createStreamTiming } from '../protocol/stream-timing.mjs'
@@ -52,6 +56,7 @@ import { mergeUsage } from '../protocol/openai-usage.mjs'
 import { ensureRedaction, maskJson, restoreJsonValue, createSseRestorer } from '../redaction/runtime.mjs'
 import { inferenceCodec } from './inference-codec.mjs'
 import { parseWorkerJson as parseJson } from './inference-codec-json.mjs'
+import { vmNodeId } from '../cluster/placement.mjs'
 import {
   createNativeHandoffState,
   consumeNativeHandoffStream,
@@ -554,11 +559,15 @@ function dumpSessionEnvelope(envelope) {
   } catch {}
 }
 
-function gateCragBody(body, print, health, isolated = false) {
+function gateCragBody(body, print, health, isolated = false, dropSampling = false) {
   if (!body || typeof body !== 'object') return body
+  if (print) alignSamplingWithThinking(body, { drop: dropSampling })
   const caps = print && Array.isArray(health?.capabilities) ? health.capabilities : []
   const prompt = body.crag_prompt
-  const model = print && !isolated && cragConsumesModelDirective(health) ? modelDirectiveForCrag(body.model) : null
+  const model =
+    print && !isolated && body.thread == null && cragConsumesModelDirective(health)
+      ? modelDirectiveForCrag(body.model)
+      : null
   const hasAlias = body.crag_options != null && Object.hasOwn(body.crag_options, 'prompt')
   if (!model && !Object.hasOwn(body, 'crag_prompt') && !Object.hasOwn(body, 'crag_model') && !hasAlias) {
     return body
@@ -594,17 +603,11 @@ export function prepareWorkerPayload({
   cragPrint = null,
   requestContext = null,
   repaired = false,
+  dropSampling = false,
 } = {}) {
   const health = exec?.workerStatus
   const print = nativeCragRequest(exec, cragPrint)
-  const canonicalBody = print ? prepareCragRequest(body) : prepareCliNodeRequest(body)
-  const model = canonicalBody?.model || ''
-  const credMode = credentialModeFromOauth(exec?.vm?.claude || {})
-  const headers = prepareOutboundHeaders(reqHeaders, exec?.homeDir, identity, model, {
-    credentialMode: credMode,
-    routing,
-    want1m: want1m === true,
-  })
+  const canonicalBody = print ? prepareCragRequest(body, health) : prepareCliNodeRequest(body)
   const displayed =
     requestContext?.purpose === 'auto_mode_classifier' || repaired
       ? canonicalBody
@@ -613,28 +616,43 @@ export function prepareWorkerPayload({
           ccEntrypointFromRouting(routing),
         )
   const main = stripSubagentBilling(displayed)
-  const thread = pinThreadBetas(
-    main,
-    withRequestProtocolBetas(String(headers?.['anthropic-beta'] || '').split(','), main),
-  )
-  const betas = thread.betas
-  headers['anthropic-beta'] = betas.join(',')
   // V3's official CC owns beta selection. Its strict request contract does not
   // accept the panel's legacy cli-node beta body extension.
   const officialBetas = print && health?.capabilities?.includes('generation_controls_v3')
-  const gated = cliHop
-    ? officialBetas
-      ? main
-      : { ...main, betas }
-    : sanitizeAnthropicBodyForBetaTokens(main, headers['anthropic-beta'])
-  const directed = gateCragBody(gated, print, health, requestContext?.purpose === 'auto_mode_classifier')
+  const nativeOwnsHeaders =
+    cliHop &&
+    cragPrint === true &&
+    officialBetas &&
+    health.capabilities.includes('linux_tui_native_queue') &&
+    !requestContext &&
+    !repaired &&
+    main.thread == null
+  let headers
+  let turn = null
+  let gated = main
+  if (!nativeOwnsHeaders) {
+    headers = prepareOutboundHeaders(reqHeaders, exec?.homeDir, identity, canonicalBody?.model || '', {
+      credentialMode: credentialModeFromOauth(exec?.vm?.claude || {}),
+      routing,
+      want1m: want1m === true,
+    })
+    const thread = pinThreadBetas(
+      main,
+      withRequestProtocolBetas(String(headers['anthropic-beta'] || '').split(','), main),
+    )
+    turn = thread.turn
+    headers['anthropic-beta'] = thread.betas.join(',')
+    if (!cliHop) gated = sanitizeAnthropicBodyForBetaTokens(main, headers['anthropic-beta'])
+    else if (!officialBetas) gated = { ...main, betas: thread.betas }
+  }
+  const directed = gateCragBody(gated, print, health, requestContext?.purpose === 'auto_mode_classifier', dropSampling)
   return {
     headers,
     gated: directed,
     cliHop,
     routing,
     acceptsCallerCwd: print && Array.isArray(health?.capabilities) && health.capabilities.includes('caller_cwd'),
-    thread: thread.turn,
+    thread: turn,
   }
 }
 
@@ -670,6 +688,7 @@ async function workerEnvelope({
   cragPrint = null,
   callerCwd = null,
   repaired = false,
+  dropSampling = false,
   redactionPrincipal = '',
   redactionSession = '',
 } = {}) {
@@ -684,6 +703,7 @@ async function workerEnvelope({
     cragPrint,
     requestContext,
     repaired,
+    dropSampling,
   })
   const redaction = await redactionContext({ routing, exec, redactionPrincipal, redactionSession })
   // Mask the separated path with the same policy as the original system text.
@@ -700,7 +720,7 @@ async function workerEnvelope({
     ...(requestContext ? { request_context: requestContext } : {}),
     ...(typeof outgoingCwd === 'string' ? { caller_cwd: outgoingCwd } : {}),
     body: finalized.body,
-    headers: finalized.headers,
+    ...(finalized.headers ? { headers: finalized.headers } : {}),
     stream: !!stream,
     delivery_mode: deliveryMode || 'realtime',
     preserve_cache_breakpoints: preserveCacheBreakpoints == null ? cacheTtl == null : preserveCacheBreakpoints === true,
@@ -724,7 +744,7 @@ async function preparePrebuiltEnvelope(envelope, redaction, messages, exec, crag
     delete out.gateway_policy
     const print = nativeCragRequest(exec, cragPrint)
     out.body = gateCragBody(
-      print ? prepareCragRequest(out.body) : prepareCliNodeRequest(out.body),
+      print ? prepareCragRequest(out.body, exec?.workerStatus) : prepareCliNodeRequest(out.body),
       print,
       exec?.workerStatus,
       out.request_context?.purpose === 'auto_mode_classifier',
@@ -800,7 +820,56 @@ function mockScenario(exec) {
   }
 }
 
-export async function callGoWorker({
+function restoreInferenceFailure(result, requestPath = '/internal/v1/messages') {
+  if (requestPath === '/internal/v1/messages' && isClaudeSlotOAuthError(result?.body)) {
+    return slotOAuthUnavailable(result)
+  }
+  if (!result || result.ok || result.committed || isClientCancelledResult(result)) return result
+  const facts = result.providerResult
+  if (
+    facts?.schema_version !== 2 ||
+    facts.source !== 'crag' ||
+    facts.provider_complete !== false ||
+    facts.observation?.policy_blocked !== true ||
+    facts.observation?.exception?.code !== 'CRAG_CACHE_CONTROL'
+  )
+    return result
+  return {
+    ...result,
+    status: 502,
+    terminalState: 'rejected',
+    cragPolicyBlock: true,
+    body: {
+      type: 'error',
+      error: {
+        type: 'api_error',
+        code: 'crag_policy_blocked',
+        message: 'Gateway kernel rejected the request cache controls before dispatch (CRAG_CACHE_CONTROL)',
+        details: { retryable: false },
+      },
+    },
+  }
+}
+
+export function slotOAuthUnavailable(result = {}) {
+  return {
+    ...result,
+    ok: false,
+    status: 503,
+    transportError: false,
+    terminalState: result.committed ? 'incomplete' : 'rejected',
+    body: {
+      type: 'error',
+      error: {
+        type: 'worker_error',
+        code: ErrorCode.SLOT_OAUTH_UNAVAILABLE,
+        message: 'The VM slot could not load its Claude OAuth credential',
+      },
+    },
+  }
+}
+
+async function callGoWorkerRaw({
   requestContext = null,
   exec,
   body,
@@ -857,6 +926,8 @@ export async function callGoWorker({
   }
   const requestId = randomUUID()
   let stopCancel = () => {}
+  const clusterSlot = requestPath === '/internal/v1/messages' && !!vmNodeId(exec?.vm)
+  let requestStarted = false
   let nativeHandoff = false
   let handoff = null
   let observedHeaders = {}
@@ -918,6 +989,7 @@ export async function callGoWorker({
       inference: true,
       beforeInferencePost,
       onRequestStarted: () => {
+        requestStarted = true
         nativeHandoff = useNativeHandoff
         stopCancel = cancelOnAbort(exec, signal, requestId)
       },
@@ -949,6 +1021,7 @@ export async function callGoWorker({
         nativeHandoff && parsed?.type === 'error' && response.statusCode < 400
           ? nativeErrorStatus(handoff, parsed)
           : response.statusCode || 0,
+      upstreamStatus: response.statusCode ?? null,
       via: 'go-worker',
       body: parsed,
       headers,
@@ -956,6 +1029,7 @@ export async function callGoWorker({
       model: parsed?.model || null,
       stopReason: parsed?.stop_reason || null,
       terminalState: headers['x-terminal-state'] || null,
+      clusterDeliveryUnconfirmed: clusterSlot && !handoff && ok && !isCompleteAssistantMessage({ body: parsed }),
       transportError: false,
       threadBetas: prepared.thread,
       ...nativeMetadata(),
@@ -988,6 +1062,7 @@ export async function callGoWorker({
         },
       },
       headers: observedHeaders,
+      clusterDeliveryUnconfirmed: clusterSlot && requestStarted,
       ...nativeMetadata(),
       terminalState:
         nativeHandoff && String(error.code).startsWith('native_handoff_')
@@ -1002,7 +1077,7 @@ export async function callGoWorker({
   }
 }
 
-export async function streamGoWorker({
+async function streamGoWorkerRaw({
   requestContext = null,
   exec,
   body,
@@ -1121,6 +1196,8 @@ export async function streamGoWorker({
   const timing = createStreamTiming()
   const requestId = randomUUID()
   let stopCancel = () => {}
+  const clusterSlot = requestPath === '/internal/v1/messages' && !!vmNodeId(exec?.vm)
+  let requestStarted = false
   let nativeHandoff = false
   let handoff = null
   let observedHeaders = {}
@@ -1184,6 +1261,7 @@ export async function streamGoWorker({
       inference: true,
       beforeInferencePost,
       onRequestStarted: () => {
+        requestStarted = true
         nativeHandoff = useNativeHandoff
         stopCancel = cancelOnAbort(exec, signal, requestId)
       },
@@ -1193,7 +1271,9 @@ export async function streamGoWorker({
     const headers = mergeRateLimitHeaders(publicHeaders(response.headers))
     observedHeaders = headers
     handoff?.observeHeaders(response.headers)
-    if ((response.statusCode || 0) < 200 || (response.statusCode || 0) >= 300) {
+    const claudeMessages = requestPath === '/internal/v1/messages'
+    const jsonReply = claudeMessages && /^application\/json\b/i.test(response.headers['content-type'] || '')
+    if (jsonReply || (response.statusCode || 0) < 200 || (response.statusCode || 0) >= 300) {
       const data = await readAll(response, handoff ? MAX_BODY : 1024 * 1024)
       let decoded = await inferenceCodec.decode(data, { status: response.statusCode, signal })
       if (handoff) decoded = handoff.consumeBody(decoded)
@@ -1204,6 +1284,7 @@ export async function streamGoWorker({
       const result = restoreKernelErrorStatus({
         ok: false,
         status: response.statusCode || 0,
+        upstreamStatus: response.statusCode ?? null,
         via: 'go-worker-stream',
         body: decoded,
         headers,
@@ -1262,6 +1343,7 @@ export async function streamGoWorker({
       return {
         ok: !failed,
         status: failed ? nativeErrorStatus(handoff, body) : response.statusCode,
+        upstreamStatus: response.statusCode ?? null,
         via: 'go-worker-stream',
         body,
         headers: mergeRateLimitHeaders(publicHeaders({ ...received.headers, ...headers, ...trailers })),
@@ -1282,6 +1364,9 @@ export async function streamGoWorker({
     let sseModel = null
     let sseStop = null
     let sseRateHeaders = {}
+    const codexResponses = requestPath === '/internal/v1/codex/responses'
+    let responsesId = null
+    let responsesTerminal = null
     const assembler = createClaudeMessageAssembler()
     const pendingLines = []
     const takeSseEvent = () => {
@@ -1312,12 +1397,32 @@ export async function streamGoWorker({
     const observeSseEvent = (event) => {
       if (!event) return event
       timing.observe(event, receivedAt)
+      if (claudeMessages && isClaudeSlotOAuthError(event)) {
+        lastError = slotOAuthUnavailable().body
+        return lastError
+      }
       if (event.type === 'response_headers' && event.headers && typeof event.headers === 'object') {
         sseRateHeaders = { ...sseRateHeaders, ...event.headers }
       }
-      if (event.type === 'error') {
-        lastError = event
-        handoff?.observeError(event)
+      if (event.type === 'error' || (codexResponses && event.type === 'response.failed')) {
+        const error = event.error ?? event.response?.error
+        lastError = codexResponses
+          ? {
+              ...event,
+              error: {
+                type: 'upstream_error',
+                message: 'Upstream returned a Responses error',
+                ...error,
+                code: error?.code || 'upstream_error',
+              },
+            }
+          : event
+        handoff?.observeError(lastError)
+      }
+      if (codexResponses && event.response && typeof event.response === 'object' && !Array.isArray(event.response)) {
+        if (typeof event.response.id === 'string') responsesId = event.response.id
+        if (['response.completed', 'response.done', 'response.incomplete'].includes(event.type))
+          responsesTerminal = event
       }
       if (event.type === 'message_stop') sawMessageStop = true
       if (event.type === 'message_start') rememberThreadTurn(event.message?.id, prepared.thread)
@@ -1327,6 +1432,14 @@ export async function streamGoWorker({
       const stop = event.message?.stop_reason || event.delta?.stop_reason
       if (stop) sseStop = stop
       return event
+    }
+    const shouldCommit = (event) =>
+      lastError?.error?.code !== ErrorCode.SLOT_OAUTH_UNAVAILABLE &&
+      (isDownstreamCommitEvent(event) || (!!event && event === responsesTerminal))
+    const publicSseLine = (line, event) => {
+      if (event?.error?.code !== ErrorCode.SLOT_OAUTH_UNAVAILABLE) return line
+      const { body } = mapUpstreamError(503, event)
+      return `data: ${JSON.stringify({ type: 'error', ...body })}`
     }
     const firstByteMs = Math.max(0, Number(timeoutMs) || 0)
     const idleMs = Math.max(0, Number(idleTimeoutMs) || 0)
@@ -1399,19 +1512,20 @@ export async function streamGoWorker({
             if (piece && piece !== '[DONE]') {
               dataBuf = dataBuf ? `${dataBuf}\n${piece}` : piece
               const event = observeSseEvent(takeSseEvent())
-              if (isDownstreamCommitEvent(event)) await flushCommit()
+              line = publicSseLine(line, event)
+              if (shouldCommit(event)) await flushCommit()
             }
           } else if (line === '') {
             if (dataBuf) {
               const event = takeSseEvent()
               dataBuf = ''
               observeSseEvent(event)
-              if (isDownstreamCommitEvent(event)) await flushCommit()
+              if (shouldCommit(event)) await flushCommit()
             }
           } else if (dataBuf && !line.startsWith('event:') && !line.startsWith(':')) {
             dataBuf = `${dataBuf}\n${line}`
             const event = observeSseEvent(takeSseEvent())
-            if (isDownstreamCommitEvent(event)) await flushCommit()
+            if (shouldCommit(event)) await flushCommit()
           }
           await emitLine(line)
         }
@@ -1424,24 +1538,53 @@ export async function streamGoWorker({
           if (piece && piece !== '[DONE]') {
             dataBuf = dataBuf ? `${dataBuf}\n${piece}` : piece
             const event = observeSseEvent(takeSseEvent())
-            if (isDownstreamCommitEvent(event)) await flushCommit()
+            buffer = publicSseLine(buffer, event)
+            if (shouldCommit(event)) await flushCommit()
           }
         }
         await emitLine(buffer)
       }
       if (dataBuf) {
         const event = observeSseEvent(takeSseEvent())
-        if (isDownstreamCommitEvent(event)) await flushCommit()
+        if (shouldCommit(event)) await flushCommit()
       }
       const trailers = mergeRateLimitHeaders(publicHeaders(response.trailers))
       handoff?.observeHeaders(response.trailers)
       const meta = streamMetaFromHeaders({ ...headers, ...trailers })
       const assembled = assembler.message
-      const stopReason = meta.stopReason || sseStop || assembled?.stop_reason || null
-      const complete = !lastError && isCompleteAssistantMessage({ body: assembled, stopReason, sawMessageStop })
+      const incomplete = responsesTerminal?.type === 'response.incomplete'
+      const stopReason =
+        responsesTerminal?.response.incomplete_details?.reason ||
+        meta.stopReason ||
+        sseStop ||
+        assembled?.stop_reason ||
+        null
+      if (codexResponses && !responsesTerminal && !lastError) {
+        lastError = {
+          type: 'error',
+          error: {
+            type: 'upstream_error',
+            code: 'upstream_stream_incomplete',
+            message: 'Upstream closed the stream without a terminal Responses event',
+          },
+        }
+        if (committed && onEvent) {
+          const failed = { ...(responsesId ? { id: responsesId } : {}), status: 'failed', error: lastError.error }
+          await onEvent(`data: ${JSON.stringify({ type: 'response.failed', response: failed })}`)
+          await onEvent('')
+        }
+      }
+      const complete =
+        !lastError &&
+        (codexResponses
+          ? !!responsesTerminal
+          : isCompleteAssistantMessage({ body: assembled, stopReason, sawMessageStop }))
       if (!committed && complete) await flushCommit()
-      const terminalState = complete ? 'verified' : 'incomplete'
+      const terminalState = complete && !incomplete ? 'verified' : 'incomplete'
       const rateHeaders = mergeRateLimitHeaders({ ...sseRateHeaders, ...headers, ...trailers })
+      const responseBody = lastError ||
+        responsesTerminal?.response ||
+        assembled || { type: 'message', role: 'assistant', content: [] }
       // A native activity timeout can follow HTTP/SSE metadata but precede
       // visible output. It is neither an empty hop nor a transport failure.
       const nativeTimeout = managedCrag && lastError?.error?.type === 'timeout_error'
@@ -1453,21 +1596,23 @@ export async function streamGoWorker({
             : nativeTimeout && !committed
               ? 504
               : response.statusCode || 0,
+        upstreamStatus: response.statusCode ?? null,
         via: 'go-worker-stream',
 
-        body: handoff
-          ? handoff.finish(lastError || assembled || { type: 'message', role: 'assistant', content: [] })
-          : lastError || assembled || { type: 'message', role: 'assistant', content: [] },
+        body: handoff ? handoff.finish(responseBody) : responseBody,
         headers: rateHeaders,
         // Trailer stays authoritative, but it may carry totals only (Codex/Responses hops).
         // Merge so SSE `input_tokens_details` / cache breakdown survives instead of being short-circuited.
         usage: mergeUsage(mergeUsage(assembled?.usage || null, sseUsage), meta.usage),
-        model: meta.model || sseModel || assembled?.model || null,
+        model: meta.model || responsesTerminal?.response.model || sseModel || assembled?.model || null,
         stopReason,
+        // Keep provider diagnostics even when a later error replaces the assembled body.
+        stopDetails: assembled?.stop_details ?? null,
         sawMessageStop,
         ...timing.snapshot(),
         committed,
         terminalState: nativeTimeout && !committed ? 'rejected' : terminalState,
+        clusterDeliveryUnconfirmed: clusterSlot && !complete && !sawMessageStop && !lastError,
         transportError: false,
         threadBetas: prepared.thread,
         ...nativeMetadata(),
@@ -1510,6 +1655,7 @@ export async function streamGoWorker({
         },
       },
       headers: observedHeaders,
+      clusterDeliveryUnconfirmed: clusterSlot && requestStarted,
       ...nativeMetadata(),
       ...timing.snapshot(),
       committed,
@@ -1586,7 +1732,21 @@ export async function workerHealth(exec, { timeoutMs = 3000, signal, requireInte
   }
 }
 
-export async function ensureWorkerCredential(exec, { force = false } = {}) {
+/**
+ * Relink a local slot's `.credentials.json` onto credentials.json. A regular file
+ * left by the CLI's write-then-rename is adopted first when it holds the later
+ * grant, so the refresh token the CLI already rotated to is the one kept.
+ */
+export function repairLocalCredentialLink(homeDir) {
+  if (!homeDir) return Promise.resolve({ linked: false, error: 'home missing' })
+  return withCredentialRefreshLock(String(homeDir), async () => relinkKeepingRotation(homeDir))
+}
+
+function relinkKeepingRotation(homeDir) {
+  return ensureOfficialCredentialLink(homeDir, { ...slotUidGidFromHomeDir(homeDir), adoptOfficial: 'rotation' })
+}
+
+export async function ensureWorkerCredential(exec, { force = false, skewMs = REFRESH_SKEW_MS } = {}) {
   if (isCrsMock()) {
     return {
       ok: true,
@@ -1600,7 +1760,8 @@ export async function ensureWorkerCredential(exec, { force = false } = {}) {
     }
   }
 
-  if (exec?.homeDir) ensureOfficialCredentialLink(exec.homeDir, { adoptOfficial: false })
+  // Adopt a later CLI grant: dropping it and refreshing the older RT revokes the grant.
+  if (exec?.homeDir) relinkKeepingRotation(exec.homeDir)
   const credential = readWorkerCredentialFile(exec.homeDir)
   if (!credential) {
     return {
@@ -1613,7 +1774,7 @@ export async function ensureWorkerCredential(exec, { force = false } = {}) {
 
   const now = Date.now()
   const apiKey = isApiKeyMode(credential.type || credential.mode)
-  const alreadyFresh = apiKey || (!force && !needsRefresh(credential.expires_at, now, REFRESH_SKEW_MS))
+  const alreadyFresh = apiKey || (!force && !needsRefresh(credential.expires_at, now, skewMs))
   if (alreadyFresh) {
     return {
       ok: true,
@@ -1627,7 +1788,7 @@ export async function ensureWorkerCredential(exec, { force = false } = {}) {
   const snapshotRefresh = String(credential.refresh_token || '')
   const lockKey = String(exec.homeDir || exec.vm?.id || 'credential')
   return withCredentialRefreshLock(lockKey, async () => {
-    if (exec?.homeDir) ensureOfficialCredentialLink(exec.homeDir, { adoptOfficial: false })
+    if (exec?.homeDir) relinkKeepingRotation(exec.homeDir)
     const live = readWorkerCredentialFile(exec.homeDir) || credential
     const liveRefresh = String(live?.refresh_token || '')
     if (snapshotRefresh && liveRefresh && snapshotRefresh !== liveRefresh) {
@@ -1640,7 +1801,7 @@ export async function ensureWorkerCredential(exec, { force = false } = {}) {
       }
     }
     const liveNow = Date.now()
-    if (!force && !needsRefresh(live.expires_at, liveNow, REFRESH_SKEW_MS) && !isApiKeyMode(live.type || live.mode)) {
+    if (!force && !needsRefresh(live.expires_at, liveNow, skewMs) && !isApiKeyMode(live.type || live.mode)) {
       return {
         ok: true,
         status: 200,
@@ -1649,7 +1810,9 @@ export async function ensureWorkerCredential(exec, { force = false } = {}) {
         credential: credentialSummary(live, liveNow),
       }
     }
-    const result = await runSlotOauth(exec, 'refresh', { force: !!force })
+    // The slot oauth helper only refreshes inside its own 5-minute window; an early
+    // scheduled refresh has to force it.
+    const result = await runSlotOauth(exec, 'refresh', { force: !!force || skewMs > REFRESH_SKEW_MS })
     const body = result?.body || {}
     const refreshedCredential = readWorkerCredentialFile(exec.homeDir)
     const mapped = {
@@ -1831,7 +1994,12 @@ export function prepareClaudeClientCredentials(exec, { refreshInSlot = runSlotOa
   return reconcileClaudeClientCredentials(exec, { ...options, refreshInSlot })
 }
 
-export async function callWorkerPost(exec, requestPath, body, { timeoutMs = 20000, signal } = {}) {
+export async function callWorkerPost(
+  exec,
+  requestPath,
+  body,
+  { timeoutMs = 20000, signal, requireInternalToken = false } = {},
+) {
   try {
     const response = await workerRequest(exec, {
       method: 'POST',
@@ -1839,6 +2007,7 @@ export async function callWorkerPost(exec, requestPath, body, { timeoutMs = 2000
       body,
       timeoutMs,
       signal,
+      requireInternalToken,
       maxRequestBytes: 8192,
     })
     const parsed = parseJson(await readAll(response, 16384), response.statusCode)
@@ -1958,4 +2127,138 @@ export async function countTokensViaWorker(exec, { body, headers = {}, timeoutMs
     return { ok: true, status: 200, body: { input_tokens: 8 }, headers: {}, via: 'go-worker-mock' }
   }
   return runSlotOauth(exec, 'count-tokens', { body, headers, timeoutMs })
+}
+
+export const EMPTY_CONTENT_VERDICT = 'native request completed without response content'
+
+export function isRecoverableThinkingOnly(result) {
+  const facts = result?.providerResult
+  return (
+    !!result &&
+    !result.ok &&
+    facts?.schema_version === 2 &&
+    facts.http_status === 200 &&
+    facts.provider_complete === true &&
+    facts.usage_complete === true &&
+    facts.stop_reason === 'max_tokens' &&
+    facts.validation_error?.message === EMPTY_CONTENT_VERDICT &&
+    /^msg_[A-Za-z0-9_-]+$/.test(facts.message_id || '') &&
+    typeof facts.model === 'string' &&
+    !!facts.usage
+  )
+}
+
+/**
+ * Records which SSE events actually reached `onEvent`, so a recovered
+ * thinking-only reply can be closed cleanly after the hop already committed
+ * (realtime delivery commits on the first thinking delta).
+ */
+function trackDownstreamEvents(onEvent) {
+  const state = { messageStarted: false, terminal: false, open: new Set() }
+  if (typeof onEvent !== 'function') return { onEvent, state }
+  return {
+    state,
+    onEvent: (line) => {
+      const text = typeof line === 'string' ? line : ''
+      if (text.startsWith('data:') && !text.includes('"type":"content_block_delta"')) {
+        try {
+          const event = JSON.parse(text.slice(5))
+          if (event?.type === 'message_start') state.messageStarted = true
+          else if (event?.type === 'content_block_start' && Number.isInteger(event.index)) state.open.add(event.index)
+          else if (event?.type === 'content_block_stop') state.open.delete(event.index)
+          else if (['message_delta', 'message_stop'].includes(event?.type)) state.terminal = true
+        } catch {}
+      }
+      return onEvent(line)
+    },
+  }
+}
+
+/**
+ * CRAG 3.0.7 rejects a provider 200 whose only output is a thinking block that
+ * consumed all of max_tokens (e.g. Claude Code's 64-token `<severity>` probe or
+ * auto-mode classifier on an adaptive-thinking model) and projects it as 502.
+ * The official API returns 200 with `stop_reason: max_tokens`; clients treat it
+ * as "no answer" and move on, while a 502 makes every hop retry the same
+ * billable request. Rebuild the 200 from the authenticated provider facts
+ * (content left empty: the thinking block's signature is not forwarded by the
+ * kernel).
+ *
+ * Realtime delivery commits the hop on the first thinking delta, so a
+ * committed result is recovered too: with no downstream writer nothing was
+ * sent; with one, `downstream` says what was sent and only the missing
+ * block stops and terminal frames are appended.
+ */
+export function recoverThinkingOnlyMaxTokens(result, { onEvent, onCommit, downstream = null } = {}) {
+  const facts = result?.providerResult
+  const writer = typeof onEvent === 'function'
+  if (!isRecoverableThinkingOnly(result) || (result.committed && writer && (!downstream || downstream.terminal)))
+    return result
+  const usage = facts.usage
+  const body = {
+    id: facts.message_id,
+    type: 'message',
+    role: 'assistant',
+    model: facts.model,
+    content: [],
+    stop_reason: 'max_tokens',
+    stop_sequence: facts.stop_sequence ?? null,
+    usage,
+  }
+  return (async () => {
+    let committed = !!result.committed
+    if (writer) {
+      if (!committed) onCommit?.()
+      const started = committed && downstream?.messageStarted === true
+      committed = true
+      const startUsage = { ...usage, output_tokens: 0 }
+      const events = [
+        ...(started
+          ? []
+          : [
+              {
+                type: 'message_start',
+                message: { ...body, stop_reason: null, stop_sequence: null, usage: startUsage },
+              },
+            ]),
+        ...(started
+          ? [...downstream.open].sort((a, b) => a - b).map((index) => ({ type: 'content_block_stop', index }))
+          : []),
+        { type: 'message_delta', delta: { stop_reason: 'max_tokens', stop_sequence: body.stop_sequence }, usage },
+        { type: 'message_stop' },
+      ]
+      for (const event of events) {
+        await onEvent(`event: ${event.type}`)
+        await onEvent(`data: ${JSON.stringify(event)}`)
+        await onEvent('')
+      }
+    }
+    return {
+      ...result,
+      ok: true,
+      status: 200,
+      body,
+      usage,
+      model: facts.model,
+      stopReason: 'max_tokens',
+      sawMessageStop: true,
+      committed,
+      terminalState: 'verified',
+      recoveredEmptyContent: true,
+    }
+  })()
+}
+
+export async function callGoWorker(opts = {}) {
+  const result = restoreInferenceFailure(await callGoWorkerRaw(opts), opts.requestPath)
+  return recoverThinkingOnlyMaxTokens(result, {})
+}
+
+export async function streamGoWorker(opts = {}) {
+  const tracked = trackDownstreamEvents(opts.onEvent)
+  const result = restoreInferenceFailure(
+    await streamGoWorkerRaw({ ...opts, onEvent: tracked.onEvent }),
+    opts.requestPath,
+  )
+  return recoverThinkingOnlyMaxTokens(result, { ...opts, onEvent: opts.onEvent, downstream: tracked.state })
 }

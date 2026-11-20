@@ -48,8 +48,20 @@ import { closeDatabase, openDatabase } from '../../src/lib/db/database.mjs'
 import { socksUidFor } from '../../src/lib/vm/vm-runtime.mjs'
 import { REMOTE_CRAG_ENTRY } from '../../src/lib/vm/slot-engine.mjs'
 import { kvmCragAppArmorCommand } from '../../src/lib/vm/kvm-crag-apparmor.mjs'
-import { activateFixture, seedEncryptedPackage } from '../fixtures/crag-license.mjs'
+import {
+  activateFixture,
+  issueHostEntitlement,
+  issueSlotPermit,
+  issueUniversalCode,
+  seedEncryptedPackage,
+} from '../fixtures/crag-license.mjs'
 import { configureSlotCapacity } from '../../src/lib/vm/slot-capacity.mjs'
+import {
+  activateCragLicense,
+  activateCragSubscriptionBinding,
+  prepareCragSubscriptionBinding,
+} from '../../src/lib/vm/crag-license.mjs'
+import { cragSubscriptionPublicDirectory } from '../../src/lib/vm/crag-subscription-paths.mjs'
 
 // These tests cover other behaviour on the legacy fixed 20 native slots;
 // plan-based capacity has its own tests (slot-capacity*.test.mjs).
@@ -220,6 +232,50 @@ async function kernelFixture(handler) {
 }
 
 const cragCapabilities = ['prompt_append', 'prompt_replace', 'model_directive', 'caller_cwd']
+
+unixTest('OAuth inference refuses an unreadable credential and repairs the relative alias once saved', async (t) => {
+  const previous = process.env.KIN_KERNEL_BIN
+  process.env.KIN_KERNEL_BIN = '/bin/true'
+  t.after(() => {
+    if (previous == null) delete process.env.KIN_KERNEL_BIN
+    else process.env.KIN_KERNEL_BIN = previous
+  })
+  let probes = 0
+  const fx = await kernelFixture((req, res) => {
+    if (req.url !== '/internal/health') {
+      res.writeHead(500)
+      return res.end()
+    }
+    probes++
+    res.end(JSON.stringify({ ok: true, engine: 'rust', ready_slots: 1 }))
+  })
+  t.after(() => fx.close())
+  fx.exec.vm.claude = { has_access: true, mode: 'oauth' }
+  const claudeDir = path.join(fx.exec.homeDir, '.claude')
+  const alias = path.join(claudeDir, '.credentials.json')
+  const source = path.join(claudeDir, 'credentials.json')
+  fs.mkdirSync(claudeDir)
+  fs.symlinkSync('/old/host/credentials.json', alias)
+  const opts = {
+    exec: fx.exec,
+    body: { model: 'claude-haiku-4-5', messages: [{ role: 'user', content: 'hi' }] },
+    routing: { inference: { health_ttl_ms: 0 } },
+  }
+  const failed = await dispatchCallInference(opts)
+  assert.equal(failed.status, 503)
+  assert.equal(failed.upstreamExecutions, 0)
+  assert.equal(failed.body.error.code, 'slot_oauth_unavailable')
+  assert.equal(probes, 0)
+  const stored = '{"claudeAiOauth":{"accessToken":"fixture-access"}}\n'
+  fs.writeFileSync(source, stored)
+  const prepared = await prepareInferenceHop(opts)
+  assert.equal(prepared.ready?.ok, true)
+  assert.equal(probes, 1)
+  assert.equal(fs.readlinkSync(alias), 'credentials.json')
+  assert.equal(fs.readFileSync(alias, 'utf8'), stored)
+  assert.equal(fs.readFileSync(source, 'utf8'), stored)
+})
+
 const cragHealth = (capabilities) => ({ ok: true, runtime_variant: 'crag-v2', ready_slots: 1, capabilities })
 
 function licenseCragFixture({ root, exec }) {
@@ -513,6 +569,38 @@ linuxTest('transport and credential retries preserve the readiness-gated CRAG en
     await fx.close()
   }
 })
+
+for (const mode of ['json', 'stream']) {
+  unixTest(`cluster ${mode} inference is not replayed after a kernel disconnect`, async (t) => {
+    const previous = process.env.KIN_KERNEL_BIN
+    process.env.KIN_KERNEL_BIN = '/bin/true'
+    t.after(() => {
+      if (previous == null) delete process.env.KIN_KERNEL_BIN
+      else process.env.KIN_KERNEL_BIN = previous
+    })
+    let posts = 0
+    const fx = await kernelFixture(async (req, res) => {
+      await readPostedEnvelope(req)
+      posts++
+      res.destroy()
+    })
+    t.after(() => fx.close())
+    fx.exec.vm.node_id = 'cluster-node'
+    const dispatch = mode === 'stream' ? dispatchStreamInference : dispatchCallInference
+    const result = await dispatch({
+      exec: fx.exec,
+      body: { model: 'claude-test', messages: [{ role: 'user', content: 'Hello' }] },
+      routing: { inference: { engine: 'rust' } },
+      ensureRust: async () => ({ ok: true, health: { ok: true, engine: 'rust', ready_slots: 1 } }),
+      timeoutMs: 2000,
+    })
+    assert.equal(result.clusterDeliveryUnconfirmed, true)
+    assert.equal(result.status, 502)
+    assert.equal(result.body.error.code, 'cluster_delivery_unconfirmed')
+    assert.equal(result.rust_transport_retried, undefined)
+    assert.equal(posts, 1)
+  })
+}
 
 for (const phase of ['transport retry', 'credential refresh', 'credential retry']) {
   linuxTest(`CRAG rechecks admission before ${phase}`, async (t) => {
@@ -1269,6 +1357,12 @@ test('CRAG session policy follows the panel unless the VM pins its seat limit', 
     const pinned = write({ ...vm, policy: { sessionSlots: 4, sessionSlotsOverride: true } }, { routing })
     assert.equal(pinned.session_slots, 4)
     assert.equal(pinned.prewarm_enabled, false)
+    const capped = write(
+      { ...vm, machine: { memory: '2g', pids_limit: 448 }, claude: { account_tier: 'pro' } },
+      { routing: { ...routing, slot_capacity: { enabled: true } } },
+    )
+    assert.equal(capped.slots_per_worker, 5)
+    assert.equal(capped.session_slots, 5)
     assert.equal(write({ ...vm, dataplane: 'wrap' }, { routing }).prewarm_enabled, undefined)
   } finally {
     fs.rmSync(root, { recursive: true, force: true })
@@ -1400,6 +1494,59 @@ test('writeKernelConfig points cc at cc-node and crag at native Claude', () => {
     assert.equal(wrap.crag_kernel_version, undefined)
     assert.equal(wrap.runtime_variant, undefined)
   } finally {
+    fs.rmSync(root, { recursive: true, force: true })
+  }
+})
+test('writeKernelConfig creates the Claude config the native CLI reads', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'kin-kernel-claude-setup-'))
+  const home = path.join(root, 'vms', 'vm-09', 'cli-home')
+  fs.mkdirSync(home, { recursive: true })
+  fs.writeFileSync(
+    path.join(home, '.claude.json'),
+    `${JSON.stringify({ hasCompletedOnboarding: true, userID: 'keep-me', machineID: 'machine-1' })}\n`,
+  )
+  try {
+    writeKernelConfig(root, { id: 'vm-09', dataplane: 'crag' }, { token: 'tok' })
+    const nested = JSON.parse(fs.readFileSync(path.join(home, '.claude', '.claude.json'), 'utf8'))
+    const outer = JSON.parse(fs.readFileSync(path.join(home, '.claude.json'), 'utf8'))
+    for (const doc of [nested, outer]) {
+      assert.equal(doc.hasCompletedOnboarding, true)
+      assert.equal(doc.theme, 'dark')
+      assert.equal(doc.projects['/run/kin/work'].hasTrustDialogAccepted, true)
+      assert.equal(doc.projects['/home/kincli'].hasTrustDialogAccepted, true)
+    }
+    assert.equal(outer.userID, 'keep-me')
+    assert.equal(outer.machineID, 'machine-1')
+    assert.equal(nested.userID, undefined)
+    const again = fs.readFileSync(path.join(home, '.claude', '.claude.json'))
+    writeKernelConfig(root, { id: 'vm-09', dataplane: 'crag' }, { token: 'tok' })
+    assert.deepEqual(fs.readFileSync(path.join(home, '.claude', '.claude.json')), again)
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true })
+  }
+})
+test('root hands a new Claude home and config to the slot user', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'kin-kernel-claude-owner-'))
+  const vm = { id: 'vm-09', dataplane: 'crag' }
+  const home = path.join(root, 'vms', vm.id, 'cli-home')
+  const owner = slotRuntimeOwner(vm)
+  const calls = []
+  const chown = mock.method(fs, 'chownSync', (file, uid, gid) => {
+    calls.push({ file, uid, gid })
+  })
+  const fchown = mock.method(fs, 'fchownSync', () => {})
+  const getuid = mock.method(process, 'getuid', () => 0)
+  try {
+    writeKernelConfig(root, vm, { token: 'tok' })
+    const nested = path.join(home, '.claude', '.claude.json')
+    const owned = calls.filter((call) => call.file === nested || String(call.file).startsWith(`${nested}.`))
+    assert.ok(owned.length > 0, JSON.stringify(calls.map((call) => call.file)))
+    assert.ok(owned.every((call) => call.uid === owner.uid && call.gid === owner.gid))
+    assert.equal(fs.statSync(path.join(home, '.claude')).mode & 0o777, 0o700)
+  } finally {
+    getuid.mock.restore()
+    chown.mock.restore()
+    fchown.mock.restore()
     fs.rmSync(root, { recursive: true, force: true })
   }
 })
@@ -1720,6 +1867,35 @@ test('reconcileCliHopRuntime reaps zombies and unpauses without CONNECT', async 
   fs.rmSync(root, { recursive: true, force: true })
 })
 
+test('reconcileCliHopRuntime accepts Claude onboarding inside a cluster-node slot once', async () => {
+  const calls = []
+  const runDockerExec = async (args) => {
+    calls.push(args)
+    if (args.includes('python3')) return { ok: true, stdout: 'patched /home/kincli/.claude/.claude.json' }
+    return { ok: true }
+  }
+  const exec = {
+    vmId: 'vm-node-onboard',
+    vm: {
+      id: 'vm-node-onboard',
+      node_id: 'node-test',
+      status: 'running',
+      runtime: { container: 'kin-vm-node-onboard', user: '10001:987' },
+    },
+  }
+  const first = await reconcileCliHopRuntime(exec, { runDockerExec })
+  assert.deepEqual(first.actions, ['reap_zombies', 'node_claude_setup'])
+  const setup = calls.find((args) => args.includes('python3'))
+  assert.ok(setup, JSON.stringify(calls))
+  assert.deepEqual(setup.slice(0, 4), ['exec', '-u', '10001:987', 'kin-vm-node-onboard'])
+  assert.match(setup.at(-1), /hasCompletedOnboarding/)
+  assert.match(setup.at(-1), /\.claude\/\.claude\.json/)
+  assert.match(setup.at(-1), /FileNotFoundError/)
+  const second = await reconcileCliHopRuntime(exec, { runDockerExec })
+  assert.deepEqual(second.actions, ['reap_zombies'])
+  assert.equal(calls.filter((args) => args.includes('python3')).length, 1)
+})
+
 test('scheduleWrapRecycle bounces once then cools down', async () => {
   resetWrapRecycleState()
   const restarts = []
@@ -1887,6 +2063,7 @@ for (const [preparation, mode] of [
     let prepareAttempts = 0
     const runDockerExec = async (args) => {
       calls.push(args)
+      if (args[0] === 'container' && args[1] === 'inspect') return { ok: true, stdout: 'true' }
       if (args.includes(prepareCommand[2])) {
         prepareAttempts += 1
         if (preparation === 'failed') return { ok: false, error: 'fixture apparmor_parser refused the policy' }
@@ -1948,6 +2125,100 @@ for (const [preparation, mode] of [
   })
 }
 
+for (const [mode, projectionOk, scope = 'subscription'] of [
+  ['restart', true],
+  ['cold-boot', true],
+  ['cold-boot-wait', true],
+  ['restart', false],
+  ['cold-boot-wait', true, 'universal'],
+  ['restart', false, 'universal'],
+]) {
+  linuxTest(`KVM ${scope} projection precedes guest launch: ${mode}/${projectionOk}`, async (t) => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'kin-kvm-subscription-launch-'))
+    t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+    const vm = {
+      id: 'vm-host-launch',
+      dataplane: 'crag',
+      crag_kernel_version: 'v2',
+      fingerprint: { guest_machine_id: 'a'.repeat(32) },
+      runtime: { type: 'kvm', container: 'kin-host-launch' },
+    }
+    seedEncryptedPackage(root)
+    fs.mkdirSync(path.join(root, 'vms', vm.id), { recursive: true })
+    if (scope === 'universal') {
+      delete vm.fingerprint
+      activateCragLicense(root, vm, issueUniversalCode(root).code)
+    } else {
+      fs.writeFileSync(path.join(root, 'vms', vm.id, 'machine-id'), `${vm.fingerprint.guest_machine_id}\n`)
+      const publicDir = cragSubscriptionPublicDirectory(root)
+      fs.mkdirSync(publicDir, { recursive: true, mode: 0o755 })
+      const hostId = 'b'.repeat(64)
+      const entitlement = issueHostEntitlement(root, hostId)
+      fs.writeFileSync(path.join(publicDir, 'host_id'), hostId, { mode: 0o644 })
+      fs.writeFileSync(path.join(publicDir, 'entitlement.code'), entitlement.code, { mode: 0o644 })
+      const machine = prepareCragSubscriptionBinding(root, vm)
+      activateCragSubscriptionBinding(root, vm, issueSlotPermit(root, machine, hostId).code)
+    }
+    const action = scope === 'universal' ? 'publish-universal' : 'publish'
+    const written = writeKernelConfig(root, vm, { token: 'tok', proxyUrl: '', proxyRequired: false })
+    const exec = {
+      projectRoot: root,
+      vmId: vm.id,
+      homeDir: path.join(root, 'vms', vm.id, 'cli-home'),
+      vm: { ...vm, runtime: { ...vm.runtime, kernel_socket: written.socketPath } },
+    }
+    let projected = mode === 'restart'
+    const server = http.createServer((_req, res) => {
+      res.writeHead(projected ? 200 : 503, { 'content-type': 'application/json' })
+      res.end(
+        JSON.stringify({ ok: projected, engine: 'rust', ready_slots: projected ? 1 : 0, worker_version: 'fixture' }),
+      )
+    })
+    await new Promise((resolve, reject) => {
+      server.once('error', reject)
+      server.listen(written.socketPath, resolve)
+    })
+    t.after(() => new Promise((resolve) => server.close(resolve)))
+    const calls = []
+    let publicationAttempts = 0
+    const runDockerExec = async (args, options = {}) => {
+      if (args[0] === 'container') return { ok: true, stdout: 'true' }
+      if (options.input) {
+        const request = JSON.parse(options.input)
+        calls.push(request.action)
+        assert.equal(args.includes(request.files?.device), false, 'private identity is sent through stdin only')
+        if (request.action === action) {
+          assert.equal(request.wait_for_setup, true)
+          publicationAttempts += 1
+          if (mode === 'cold-boot-wait' && publicationAttempts === 1) {
+            return { ok: false, code: 75, error: 'guest command failed', stderr: 'CRAG guest setup is not ready' }
+          }
+          projected = projectionOk
+          return { ok: projectionOk, error: projectionOk ? '' : 'fixture projection denied' }
+        }
+        return { ok: true }
+      }
+      if (args.includes('systemctl')) calls.push('restart')
+      if (args.some((arg) => String(arg).includes('kill -KILL'))) calls.push('kill')
+      return { ok: true }
+    }
+    const result =
+      mode === 'restart'
+        ? await restartRustKernel(exec, { timeoutMs: 2000, runDockerExec })
+        : await ensureRustKernel(exec, { timeoutMs: 2000, runDockerExec, prepareGuestAppArmor: true })
+    assert.equal(result.ok, projectionOk, JSON.stringify(result))
+    assert.equal(calls[0], action)
+    if (projectionOk) {
+      assert.equal(publicationAttempts, mode === 'cold-boot-wait' ? 2 : 1)
+      assert.ok(calls.indexOf(action) < calls.indexOf('kill'))
+      assert.ok(calls.indexOf('kill') < calls.indexOf('restart'))
+    } else {
+      assert.equal(result.reason, 'crag_subscription_projection_failed')
+      assert.deepEqual(calls, [action, 'block'])
+    }
+  })
+}
+
 for (const firstPrepares of [false, true]) {
   unixTest(
     `KVM AppArmor preparation coalesces behind a pending ${firstPrepares ? 'preparing' : 'ordinary'} ensure`,
@@ -1986,6 +2257,7 @@ for (const firstPrepares of [false, true]) {
           observeFirst()
           await firstReleased
         }
+        if (args[0] === 'container' && args[1] === 'inspect') return { ok: true, stdout: 'true' }
         return { ok: true }
       }
       try {
@@ -2145,6 +2417,19 @@ unixTest('Rust supervisor does not recycle a busy CLI with ready_slots=0', async
     await new Promise((resolve) => server.close(resolve))
     fs.rmSync(root, { recursive: true, force: true })
   }
+})
+
+test('CRAG slot convergence repairs an over-cap session limit even when the slot count is unchanged', (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'kin-crag-session-cap-'))
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+  const file = path.join(root, 'kernel.json')
+  const config = { slots_per_worker: 5, session_slots: 20, runtime_variant: 'crag-v2' }
+  fs.writeFileSync(file, JSON.stringify(config))
+  const health = { ok: true, engine: 'rust', healthy: true, capacity: 5, cli_pid: 1 }
+  assert.equal(kernelSlotsConverge(file, health, 5), false)
+  assert.deepEqual(JSON.parse(fs.readFileSync(file, 'utf8')), { ...config, session_slots: 5 })
+  assert.equal(kernelSlotsConverge(file, { ...health, capacity: 12 }, 12, 20), false)
+  assert.deepEqual(JSON.parse(fs.readFileSync(file, 'utf8')), { ...config, slots_per_worker: 12, session_slots: 12 })
 })
 
 test('kernel slot count compares the live count before the file', () => {
@@ -2336,6 +2621,52 @@ unixTest(
     }
   },
 )
+
+unixTest('credential-free readiness accepts an idle CRAG v2 process pool with no live Claude process', async () => {
+  // Health a freshly installed CRAG v2 slot reports with prewarm off: healthy, no process yet.
+  const fx = await kernelFixture((_req, res) => {
+    res.writeHead(200, { 'content-type': 'application/json' })
+    res.end(
+      JSON.stringify({
+        ok: true,
+        engine: 'rust',
+        healthy: true,
+        ready_slots: 2,
+        cli_pid: 0,
+        execution_mode: 'v2_process_pool',
+      }),
+    )
+  })
+  try {
+    fs.writeFileSync(rustKernelPaths(fx.exec).configPath, JSON.stringify({ slots_per_worker: WRAP_SLOT_MAX }))
+    const ready = await ensureRustKernel(fx.exec, {
+      allowMissingCredential: true,
+      timeoutMs: 100,
+      runDockerExec: async () => ({ ok: true }),
+    })
+    assert.equal(ready.ok, true, JSON.stringify(ready))
+  } finally {
+    await fx.close()
+  }
+})
+
+unixTest('credential-free readiness still requires a live process outside the CRAG v2 pool', async () => {
+  const fx = await kernelFixture((_req, res) => {
+    res.writeHead(200, { 'content-type': 'application/json' })
+    res.end(JSON.stringify({ ok: true, engine: 'rust', healthy: true, ready_slots: 1, cli_pid: 0 }))
+  })
+  try {
+    fs.writeFileSync(rustKernelPaths(fx.exec).configPath, JSON.stringify({ slots_per_worker: WRAP_SLOT_MAX }))
+    const ready = await ensureRustKernel(fx.exec, {
+      allowMissingCredential: true,
+      timeoutMs: 100,
+      runDockerExec: async () => ({ ok: true }),
+    })
+    assert.equal(ready.ok, false, JSON.stringify(ready))
+  } finally {
+    await fx.close()
+  }
+})
 
 unixTest('supervisor repairs a Max subscription from a VM summary without restarting the live kernel', async () => {
   const fx = await kernelFixture((_req, res) => {

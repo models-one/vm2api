@@ -776,6 +776,35 @@ test('gate stats count every inbound request and keep the stored verdict', () =>
   assert.deepEqual(blockBy, { 'distill:Memory-stage-one extractor': 1, 'refusal:device': 1 })
 })
 
+test('risk audit counts only routed hops and looks up upstream 400s by original request', () => {
+  const store = tmpStore()
+  const verdict = gateVerdict({ kind: 'pass', by: 'jev', route: { kind: 'pool', target: 'pool_12345678', score: 0.6 } })
+  const original = logOne(store, {
+    status: 200,
+    upstream_status: 200,
+    audit_upstream_400: true,
+    audit_upstream_400_message: 'Provider rejected request shape',
+    attempt_count: 1,
+    intercept: verdict,
+    inbound_device_id: 'request-device',
+    session_id: 'request-session',
+  })
+  logOne(store, { status: 503, attempt_count: 0, intercept: verdict })
+  logOne(store, { status: 400, error_code: 'invalid_request' })
+  logOne(store, { status: 400, upstream_status: 400, attempt_count: 1, error_code: 'invalid_kernel_request' })
+  assert.deepEqual(store.protocolEntryStats({ since: '1970-01-01T00:00:00.000Z' }).routes, [
+    { kind: 'pool', target: 'pool_12345678', count: 1 },
+  ])
+  const view = new UsageLogsView(store.db)
+  const requests = view.listBatch({ upstream_400: true }).logs
+  assert.equal(requests.length, 1)
+  assert.equal(requests[0].upstreamStatus, 400)
+  assert.equal(requests[0].upstream400Message, 'Provider rejected request shape')
+  assert.equal(requests[0].inboundDeviceId, 'request-device')
+  assert.equal(requests[0].clientSessionId, 'request-session')
+  assert.equal(view.listBatch({ request_id: original.request_id }).logs[0].id, requests[0].id)
+})
+
 test('queryNormal filters + pagination + total', () => {
   const store = tmpStore('normal')
   logOne(store, { api_key_id: 'key_a', model: 'm1', input_tokens: 10, output_tokens: 5 })
@@ -858,7 +887,7 @@ test('windowStats treats 429 quota/rate-limit as SLA success', () => {
   assert.equal(w.error_collection.by_class[0].id, 'rate_limit')
 })
 
-test('windowStats treats ingress auth failures as SLA success like sub2api', () => {
+test('windowStats treats ingress auth failures as SLA success', () => {
   const store = tmpStore('normal')
   logOne(store, { status: 200, first_token_ms: 80, duration_ms: 100, model: 'claude-sonnet-5' })
   logOne(store, {
@@ -883,7 +912,7 @@ test('windowStats treats ingress auth failures as SLA success like sub2api', () 
   assert.equal(w.error_collection.by_class[0].owner, 'client')
 })
 
-test('windowStats ignores client abort like sub2api ignore_context_canceled', () => {
+test('windowStats excludes client aborts from error counts', () => {
   const store = tmpStore('normal')
   logOne(store, { status: 200, first_token_ms: 80, duration_ms: 100, model: 'claude-sonnet-5' })
   logOne(store, { status: 200, error_code: 'client_cancelled', error_message: 'ECONNRESET', model: 'claude-sonnet-5' })

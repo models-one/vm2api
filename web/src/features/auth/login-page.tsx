@@ -15,7 +15,7 @@ import { ThemeSwitch } from '@/components/theme-switch'
 import { onboardingQueryOptions } from '@/features/welcome/queries'
 import { meQueryOptions } from './queries'
 
-/** Standalone sign-in page; layout follows the newapi /sign-in screen. */
+/** Standalone sign-in page. */
 export function LoginPage() {
   const search = useSearch({ from: '/login' })
   const navigate = useNavigate()
@@ -116,6 +116,12 @@ export function LoginPage() {
             </Link>
             。
           </p>
+          <Link
+            to='/crag-purchase'
+            className='mt-3 inline-block text-sm underline underline-offset-4'
+          >
+            免登录购买 CRAG 订阅
+          </Link>
 
           <form className='mt-8 space-y-4' onSubmit={onSubmit}>
             <div className='space-y-2'>

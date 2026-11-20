@@ -19,6 +19,7 @@ import {
   ensureRustKernel,
   dataplaneUsesCcNode,
   kernelSlotsConverge,
+  requestedCragSessionSlots,
   wrapSlotCount,
   slotContainerName,
 } from './rust-kernel-supervisor.mjs'
@@ -27,9 +28,10 @@ import { slotHost } from '../vm/slot-host.mjs'
 import { dockerRequest } from '../cluster/docker-remote.mjs'
 import { clusterManager, vmNodeId } from '../cluster/placement.mjs'
 import { vmTimeoutTracker } from '../pool/failover-runner.mjs'
-import { clearUnschedulable } from '../vm/vm-registry.mjs'
+import { clearStaleRuntimeMaintenanceHold, clearUnschedulable } from '../vm/vm-registry.mjs'
 import path from 'node:path'
 import { checkCragLicense } from '../vm/crag-license.mjs'
+import { withCragRuntimeAdmission } from '../vm/slot-runtime-admission.mjs'
 
 /** A failed observation is not evidence of a dead container. Use the slot's own host, including KVM runners. */
 export async function observeWatchdogContainer(
@@ -49,11 +51,14 @@ export async function observeWatchdogContainer(
       })
       if (res.status === 404) return { state: 'missing' }
       if (res.status !== 200) return { state: 'unknown' }
-      const state = JSON.parse(res.body.toString('utf8'))?.State
-      if (state?.Paused === true) return { state: 'paused' }
-      if (state?.Restarting === true) return { state: 'restarting' }
+      const container = JSON.parse(res.body.toString('utf8'))
+      const state = container?.State
+      if (state?.Paused === true || state?.Status === 'paused') return { state: 'paused' }
+      if (state?.Restarting === true || state?.Status === 'restarting') return { state: 'restarting' }
       if (state?.Running === true) return { state: 'running' }
-      if (state?.Running === false && ['created', 'exited', 'dead'].includes(state.Status)) return { state: 'stopped' }
+      if (state?.Running === false && ['created', 'exited', 'dead'].includes(state.Status)) {
+        return { state: 'stopped', restartDisabled: container.HostConfig?.RestartPolicy?.Name === 'no' }
+      }
       return { state: 'unknown' }
     })
     // Covers connector/SSH setup too, before dockerRequest's own HTTP timeout starts.
@@ -144,10 +149,11 @@ export function watchdogProbeVm(vm, { relayPaths = clusterRelayPaths, exists = f
   }
 }
 
-function kernelSlotMismatch(exec, health) {
+function kernelSlotMismatch(exec, health, routing) {
   const configPath = rustKernelPaths(exec).configPath
   if (!configPath) return false
-  return kernelSlotsConverge(configPath, health, wrapSlotCount(exec.vm))
+  const requested = routing?.inference ? requestedCragSessionSlots(exec.vm, routing) : undefined
+  return kernelSlotsConverge(configPath, health, wrapSlotCount(exec.vm), requested)
 }
 
 export function createKernelWatchdog({
@@ -237,39 +243,37 @@ export function createKernelWatchdog({
     state.nextAt = at + nextDelay * 1000
   }
 
-  /** L4 gate for container revival, where the failed runtime state is confirmed. */
-  function admitRestart(vm, reason, at) {
-    if (!restartBudget(vm, reason, at)) return false
-    const state = restarts.get(vm.id)
-    state.attempts.push(at)
-    const nextDelay = config.restart_backoff_sec[state.attempts.length] ?? config.interval_sec
-    state.nextAt = at + nextDelay * 1000
-    return true
-  }
-
   /** One VM's check. `held` is re-read after every await: an operator cycle may start mid-check. */
-  async function reviveDownContainer(vm, state) {
+  async function reviveDownContainer(vm, state, admit) {
     if (vm.status !== 'running' || typeof revive !== 'function') return
-    if (!admitRestart(vm, `container ${state}`, now())) return
-    const revived = await revive(vm)
-    if (!revived?.ok) console.warn(`[kernel-watchdog] ${vm.id} boot failed: ${revived?.error || revived?.code}`)
+    if (!restartBudget(vm, `container ${state}`, now())) return
+    const revived = await admit(async () => {
+      recordRestart(vm, now())
+      return revive(vm)
+    })
+    if (revived && !revived.ok) console.warn(`[kernel-watchdog] ${vm.id} boot failed: ${revived.error || revived.code}`)
   }
 
   async function checkVm(vm, routing) {
     const home = typeof homeDirFor === 'function' ? homeDirFor(vm) : null
-    const licensed = checkCragLicense(home ? path.resolve(home, '../../..') : '', vm, routing)
+    const root = home ? path.resolve(home, '../../..') : ''
+    const licensed = checkCragLicense(root, vm, routing)
     if (!licensed.ok) return // Activation, not container recovery, repairs licensing failures.
+    const admit = (run) =>
+      withCragRuntimeAdmission(vm, root, { routing, action: 'recovery' }, () => {
+        if (!held.has(vm.id)) return run()
+      })
     const probed = probeVm(vm)
     if (!probed) {
       // The kernel cannot be probed without its relay; only a container that is really down is revived.
       const observed = await observeRuntime(vm)
       if (held.has(vm.id) || !['missing', 'stopped', 'restarting'].includes(observed?.state)) return
-      return reviveDownContainer(vm, observed.state)
+      return reviveDownContainer(vm, observed.state, admit)
     }
     const exec = {
       vmId: vm.id,
       vm: probed,
-      homeDir: typeof homeDirFor === 'function' ? homeDirFor(vm) : null,
+      homeDir: home,
     }
     const current = await health(exec, { timeoutMs: vmNodeId(vm) ? NODE_SLOT_HEALTH_TIMEOUT_MS : 800 })
     if (held.has(vm.id)) return
@@ -304,6 +308,29 @@ export function createKernelWatchdog({
           vm.unschedulable = null
         }
       }
+      // A control-plane restart can kill a withSlotMaintenance cutover mid-flight
+      // and leak its operation-scoped hold onto a healthy slot. Live cutovers keep
+      // the watchdog held off (withSlotMaintenance calls watchdog.hold), so a stale
+      // slot-runtime: hold visible here belongs to an operation that is gone.
+      const heldAt = Date.parse(vm.schedule_hold?.at || '') || 0
+      if (
+        vm.schedule_hold?.reason === 'maintenance' &&
+        String(vm.schedule_hold?.detail?.tag || '').startsWith('slot-runtime:') &&
+        heldAt > 0 &&
+        now() - heldAt >= STALE_RUNTIME_LOCK_MS &&
+        home &&
+        path.resolve(home, '..').endsWith(path.join('/vms', vm.id))
+      ) {
+        const lifted = clearStaleRuntimeMaintenanceHold(path.resolve(home, '../../..'), vm.id, {
+          tag: vm.schedule_hold.detail.tag,
+          minAgeMs: STALE_RUNTIME_LOCK_MS,
+          now: now(),
+        })
+        if (lifted) {
+          console.warn(`[kernel-watchdog] ${vm.id} kernel healthy; stale slot-runtime maintenance hold lifted`)
+          vm.schedule_hold = null
+        }
+      }
       // Healthy again after a fault means someone fixed it: start a fresh budget.
       // Plain recovery keeps past attempts so a crash loop stays bounded by the window.
       if (kernelFaults.delete(vm.id)) {
@@ -312,9 +339,10 @@ export function createKernelWatchdog({
         vmTimeoutTracker?.reset?.(vm.id)
       }
       // Config convergence, not a failure: outside the restart budget.
-      if (kernelSlotMismatch(exec, current)) {
+      if (kernelSlotMismatch(exec, current, routing)) {
         const observed = await observeRuntime(vm)
-        if (!held.has(vm.id) && observed?.state === 'running') await ensure(exec, { timeoutMs: config.timeout_ms })
+        if (!held.has(vm.id) && observed?.state === 'running')
+          await admit(() => ensure(exec, { timeoutMs: config.timeout_ms }))
       }
       return
     }
@@ -323,9 +351,15 @@ export function createKernelWatchdog({
     if (held.has(vm.id)) return
     // Permission/transport failures and deliberately paused containers never authorize recovery.
     if (!['running', 'missing', 'stopped', 'restarting'].includes(observed?.state)) return
-    if (observed.state !== 'running') return reviveDownContainer(vm, observed.state)
+    if (observed.state !== 'running') return reviveDownContainer(vm, observed.state, admit)
     const attemptAt = now()
     if (!restartBudget(vm, reason, attemptAt)) return
+    const interrupted = await admit(() => restartKernel(vm, exec, reason))
+    if (interrupted?.ok === false)
+      console.warn(`[kernel-watchdog] ${vm.id} recovery refused: ${interrupted.error || interrupted.code}`)
+  }
+
+  async function restartKernel(vm, exec, reason) {
     let result
     try {
       result = await ensure(exec, {
